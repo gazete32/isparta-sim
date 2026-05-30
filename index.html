@@ -3,380 +3,419 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Isparta 3D Sanal Gezi — Gazete32</title>
-<meta name="description" content="Isparta'nın tarihi ve doğal güzelliklerini 3D olarak keşfedin.">
+<title>Isparta Uçuş Simülatörü — 3D Sanal Uçuş</title>
+<meta name="description" content="Isparta üzerinde 3D sanal uçuş simülatörü. Davraz, Eğirdir Gölü ve Isparta ovasını havadan keşfedin.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Widgets/widgets.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #111827; --bg2: #1f2937; --bg3: #374151;
     --border: #374151; --text: #f9fafb; --text3: #9ca3af;
-    --primary: #3b82f6; --green: #22c55e;
+    --primary: #3b82f6;
   }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 1rem 16px; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; }
+  .sim-page { max-width: 1100px; padding: 1rem 16px; margin: 0 auto; }
 
-  /* BAŞLIK */
-  .band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
-          background:var(--bg2); border:1px solid var(--border);
-          border-radius:8px; padding:.8rem 1.2rem; margin-bottom:.8rem; }
-  .band__title { font-size:18px; font-weight:700; }
-  .band__sub   { font-size:12px; color:var(--text3); margin-top:2px; }
-  .band__badge { margin-left:auto; background:#0f1f30; color:var(--green);
-                 font-size:11px; font-weight:700; padding:4px 12px;
-                 border-radius:20px; display:flex; align-items:center; gap:5px; }
-  .dot { width:7px; height:7px; border-radius:50%; background:var(--green);
-         animation:pulse 1.5s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-
-  /* ANA LAYOUT */
-  .main { display:grid; grid-template-columns:1fr 300px; gap:12px; }
-  @media(max-width:800px){ .main { grid-template-columns:1fr; } }
-
-  /* HARİTA */
-  .map-col {}
-  .toolbar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
-  .tbtn { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600;
-          padding:5px 12px; border-radius:6px; border:1px solid var(--border);
-          background:var(--bg2); color:var(--text); cursor:pointer; transition:background .15s; }
-  .tbtn:hover { background:var(--bg3); }
-  .tbtn--on { background:#1e3a5f; border-color:var(--primary); color:#fff; }
-  .tsep { flex:1; }
-
-  #map { width:100%; height:520px; border-radius:8px; border:1px solid var(--border);
-         background:#0d1b2a; }
-  @media(max-width:600px){ #map { height:360px; } }
-  .sim-fullscreen #map { position:fixed; inset:0; z-index:9999; height:100vh !important; border-radius:0; border:none; }
-  .fs-close { position:fixed; top:14px; right:14px; z-index:10000;
-              background:rgba(0,0,0,.8); color:#fff; border:none; border-radius:6px;
-              padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; display:none; }
-  .sim-fullscreen .fs-close { display:block; }
-
-  .hint { font-size:11px; color:var(--text3); margin:5px 0 0 2px; }
-
-  /* AUTOPILOT BAR */
-  .auto-bar { display:flex; align-items:center; gap:8px; margin-top:8px;
+  .sim-band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
               background:var(--bg2); border:1px solid var(--border);
-              border-radius:8px; padding:.5rem .8rem; font-size:12px; }
-  .auto-bar__lbl  { color:var(--text3); white-space:nowrap; }
-  .auto-bar__name { font-weight:700; color:var(--text); min-width:120px; }
-  .auto-bar__prog { flex:1; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
-  .auto-bar__fill { height:100%; background:var(--primary); border-radius:2px; width:0%; transition:width .15s; }
-  .auto-bar__btn  { background:none; border:1px solid var(--border); color:var(--text3);
-                    border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; white-space:nowrap; }
-  .auto-bar__btn:hover { background:var(--bg3); color:var(--text); }
+              border-radius:8px; padding:.8rem 1.2rem; margin-bottom:.8rem; }
+  .sim-band__title { font-size:18px; font-weight:700; color:var(--text); margin:0; }
+  .sim-band__sub   { font-size:12px; color:var(--text3); margin:2px 0 0; }
+  .sim-band__badge { margin-left:auto; background:#0f1f30; color:#22c55e;
+                     font-size:11px; font-weight:700; padding:4px 12px;
+                     border-radius:20px; display:flex; align-items:center; gap:5px; }
+  .sim-band__dot   { width:7px; height:7px; border-radius:50%; background:#22c55e;
+                     animation:sim-pulse 1.5s ease-in-out infinite; }
+  @keyframes sim-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-  /* YER LİSTESİ */
-  .side-col { display:flex; flex-direction:column; gap:10px; }
-  .side-title { font-size:13px; font-weight:700; color:var(--text3);
-                text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
+  .sim-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:.8rem; }
+  @media(max-width:600px){ .sim-hud { grid-template-columns:repeat(2,1fr); } }
+  .sim-hud__card  { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+  .sim-hud__label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .sim-hud__val   { font-size:20px; font-weight:700; color:var(--text); font-family:monospace; }
+  .sim-hud__sub   { font-size:11px; color:var(--text3); margin-top:2px; }
 
-  .yer-list { display:flex; flex-direction:column; gap:6px; max-height:520px; overflow-y:auto;
-              scrollbar-width:thin; scrollbar-color:var(--bg3) transparent; }
-  .yer-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px;
-              padding:10px 12px; cursor:pointer; transition:border-color .15s, background .15s; }
-  .yer-card:hover { background:var(--bg3); border-color:var(--primary); }
-  .yer-card--aktif { background:#1e3a5f; border-color:var(--primary); }
-  .yer-card__row   { display:flex; align-items:center; gap:8px; }
-  .yer-card__icon  { font-size:18px; flex-shrink:0; }
-  .yer-card__name  { font-size:13px; font-weight:700; }
-  .yer-card__kat   { font-size:10px; color:var(--primary); text-transform:uppercase;
-                     letter-spacing:.5px; margin-top:1px; }
-  .yer-card__desc  { font-size:11px; color:var(--text3); margin-top:5px; line-height:1.5;
-                     display:none; }
-  .yer-card--aktif .yer-card__desc { display:block; }
+  .sim-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
+  .sim-toolbar__btn { display:inline-flex; align-items:center; gap:5px;
+                      font-size:12px; font-weight:600; padding:6px 14px;
+                      border-radius:6px; border:1px solid var(--border);
+                      background:var(--bg2); color:var(--text);
+                      cursor:pointer; transition:background .15s; }
+  .sim-toolbar__btn:hover  { background:var(--bg3); }
+  .sim-toolbar__btn--aktif { background:#1a2535; border-color:#3b82f6; color:#fff; }
+  .sim-toolbar__sep        { flex:1; }
+
+  .sim-container-wrapper { position: relative; width: 100%; }
+
+  #sim-container { width:100%; height:560px; border-radius:8px; overflow:hidden;
+                   border:1px solid var(--border); position:relative;
+                   background:#0d1b2a; outline:none; cursor:crosshair; }
+  @media(max-width:600px){ #sim-container { height:380px; } }
+
+  .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:9999; height:100vh; border-radius:0; border:none; }
+  .sim-fs-close { position:fixed; top:14px; right:14px; z-index:10000;
+                  background:rgba(0,0,0,.7); color:#fff; border:none;
+                  border-radius:6px; padding:8px 16px; font-size:13px;
+                  font-weight:600; cursor:pointer; display:none; }
+  .sim-fullscreen .sim-fs-close { display:block; }
+
+  .sim-mobile-controls {
+      position: absolute; bottom: 20px; left: 0; right: 0;
+      display: none; justify-content: space-between; padding: 0 15px;
+      z-index: 999; pointer-events: none;
+  }
+  .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
+  @media (max-width: 1024px) { .sim-mobile-controls { display: flex; } }
+
+  .sim-dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; pointer-events: auto; }
+  .sim-joy-btn {
+      background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.4);
+      color: #fff; border-radius: 50%; font-size: 14px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; cursor: pointer;
+  }
+  .sim-joy-btn:active { background: #3b82f6; border-color: #3b82f6; }
+
+  .sim-controls { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:.8rem; }
+  @media(max-width:600px){ .sim-controls { grid-template-columns:1fr; } }
+  .sim-ctrl-card        { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+  .sim-ctrl-card__title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .sim-ctrl-card__item  { display:flex; justify-content:space-between; font-size:12px;
+                          padding:3px 0; border-bottom:1px solid var(--border); }
+  .sim-ctrl-card__item:last-child { border:none; }
+  .sim-ctrl-card__key   { background:var(--bg3); border:1px solid var(--border);
+                          border-radius:4px; padding:1px 7px; font-family:monospace;
+                          font-size:11px; color:var(--text); }
 
   .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
   .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
   .cesium-widget-credits { display:none !important; }
 
-  .sim-footer { text-align:center; padding:1.2rem 0 .8rem; font-size:12px; color:var(--text3); margin-top:12px; }
+  .sim-hint { font-size:11px; color:var(--text3); margin:4px 0 0 2px; }
+  .sim-footer { text-align:center; padding: 1.5rem 0 1rem; font-size:12px; color:var(--text3); }
   .sim-footer a { color:var(--primary); text-decoration:none; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="sim-page">
 
-  <div class="band">
+  <div class="sim-band">
     <div>
-      <div class="band__title">🏙 Isparta 3D Sanal Gezi</div>
-      <div class="band__sub">Tarihi ve doğal güzellikleri havadan keşfedin · Gazete32</div>
+      <h1 class="sim-band__title">Gazete32 Isparta Uçuş Simülatörü</h1>
+      <p class="sim-band__sub">Davraz · Eğirdir Gölü · Isparta Ovası — 3D gerçek arazi</p>
     </div>
-    <div class="band__badge"><span class="dot"></span>CesiumJS · Canlı 3D</div>
-  </div>
-
-  <div class="main">
-    <!-- SOL: HARİTA -->
-    <div class="map-col">
-      <div class="toolbar">
-        <button class="tbtn tbtn--on" id="btn-havaalani" onclick="yerGit('havaalani',this)">✈ Havalimanı</button>
-        <button class="tbtn" id="btn-davraz"    onclick="yerGit('davraz',this)">⛰ Davraz</button>
-        <button class="tbtn" id="btn-egirdir"   onclick="yerGit('egirdir',this)">🌊 Eğirdir</button>
-        <button class="tbtn" id="btn-merkez"    onclick="yerGit('merkez',this)">🏙 Merkez</button>
-        <span class="tsep"></span>
-        <button class="tbtn" onclick="simTamEkran()">⛶ Tam Ekran</button>
-      </div>
-
-      <div id="map"></div>
-      <p class="hint">🖱️ Sürükle · Kaydır · Çift tıkla yakınlaş &nbsp;·&nbsp; Sağ listeden yer seç → otomatik gider</p>
-
-      <div class="auto-bar">
-        <span class="auto-bar__lbl">✈ Otopilot:</span>
-        <span class="auto-bar__name" id="auto-name">Havalimanı</span>
-        <div class="auto-bar__prog"><div class="auto-bar__fill" id="auto-fill"></div></div>
-        <button class="auto-bar__btn" id="auto-btn" onclick="autoToggle()">⏸ Duraklat</button>
-      </div>
-    </div>
-
-    <!-- SAĞ: YER LİSTESİ -->
-    <div class="side-col">
-      <div class="side-title">📍 Isparta'yı Keşfet</div>
-      <div class="yer-list" id="yer-list"></div>
+    <div class="sim-band__badge">
+      <span class="sim-band__dot"></span>
+      CesiumJS · Canlı
     </div>
   </div>
 
-  <button class="fs-close" onclick="simTamEkran()">✕ Kapat</button>
+  <div class="sim-hud">
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Yükseklik</div>
+      <div class="sim-hud__val" id="hud-alt">-- m</div>
+      <div class="sim-hud__sub">Deniz seviyesinden</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Hız</div>
+      <div class="sim-hud__val" id="hud-spd">-- km/s</div>
+      <div class="sim-hud__sub">Yatay hız</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Konum</div>
+      <div class="sim-hud__val" style="font-size:13px;padding-top:4px;" id="hud-pos">--</div>
+      <div class="sim-hud__sub">Enlem / Boylam</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Yön</div>
+      <div class="sim-hud__val" id="hud-dir">--°</div>
+      <div class="sim-hud__sub" id="hud-dirstr">--</div>
+    </div>
+  </div>
+
+  <div class="sim-toolbar">
+    <button class="sim-toolbar__btn sim-toolbar__btn--aktif" onclick="simNoktaGit('havaalani',this)">✈ Havalimanı</button>
+    <button class="sim-toolbar__btn" onclick="simNoktaGit('davraz',this)">⛰ Davraz</button>
+    <button class="sim-toolbar__btn" onclick="simNoktaGit('egirdir',this)">🌊 Eğirdir Gölü</button>
+    <button class="sim-toolbar__btn" onclick="simNoktaGit('merkez',this)">🏙 Şehir Merkezi</button>
+    <span class="sim-toolbar__sep"></span>
+    <button class="sim-toolbar__btn" onclick="simTamEkran()">⛶ Tam Ekran</button>
+  </div>
+
+  <div class="sim-container-wrapper">
+      <div id="sim-container" tabindex="0"></div>
+      
+      <div class="sim-mobile-controls">
+          <div class="sim-dpad">
+              <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
+              <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
+              <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
+          </div>
+          <div class="sim-dpad" style="grid-template-columns: repeat(1, 46px); grid-template-rows: repeat(2, 42px); margin-top:20px;">
+              <div class="sim-joy-btn" data-key="w" style="border-radius: 6px;">+W</div>
+              <div class="sim-joy-btn" data-key="s" style="border-radius: 6px; margin-top:4px;">-S</div>
+          </div>
+      </div>
+  </div>
+  
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla, <b>A/D</b> Sağa/Sola Jet Dönüşü, <b>E/Q</b> Yüksel/Alçal.</p>
+  <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
+
+  <div class="sim-controls">
+    <div class="sim-ctrl-card">
+      <div class="sim-ctrl-card__title">✈ Uçuş Kontrolleri</div>
+      <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Sola / Sağa Keskin Dönüş</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
+    </div>
+    <div class="sim-ctrl-card">
+      <div class="sim-ctrl-card__title">📍 Noktalar</div>
+      <div class="sim-ctrl-card__item"><span>Havalimanı</span><span style="color:var(--text3);font-size:11px;">37.855°N 30.568°E</span></div>
+      <div class="sim-ctrl-card__item"><span>Davraz Dağı</span><span style="color:var(--text3);font-size:11px;">37.741°N 30.755°E</span></div>
+      <div class="sim-ctrl-card__item"><span>Eğirdir Gölü</span><span style="color:var(--text3);font-size:11px;">37.874°N 30.857°E</span></div>
+    </div>
+  </div>
 
   <div class="sim-footer">
-    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta 3D Sanal Gezi
+    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta Uçuş Simülatörü
   </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Cesium.js"></script>
 <script>
-(function() {
-  if (typeof Cesium === 'undefined') {
-    document.getElementById('map').innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;flex-direction:column;gap:12px;">' +
-      '<span style="font-size:36px;">⚠️</span><p style="font-size:13px;opacity:.7;">CesiumJS yüklenemedi. Sayfayı yenileyin.</p></div>';
-    return;
-  }
+(function simBaslat() {
+    if (typeof Cesium === 'undefined' || !Cesium.Viewer) {
+        document.getElementById('sim-container').innerHTML =
+            '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;flex-direction:column;gap:12px;">' +
+            '<span style="font-size:40px;">⚠️</span>' +
+            '<p style="font-size:14px;opacity:.7;text-align:center;">CesiumJS yüklenemedi.<br>Lütfen sayfayı yenileyin.</p></div>';
+        return;
+    }
 
-  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
+    /* ── CESIUM ION TOKEN ── */
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
-  /* ══════════════════════════════════════
-     YER VERİTABANI
-  ══════════════════════════════════════ */
-  var YERLER = [
-    /* DOĞA */
-    { id:'davraz',    kat:'Doğa',    icon:'⛰',  ad:'Davraz Dağı',         lon:30.7550, lat:37.7410, alt:5500, heading:30,  pitch:-28, desc:'2635 m yüksekliğiyle Isparta\'nın en yüksek zirvesi. Kış turizminin merkezi.' },
-    { id:'egirdir',   kat:'Doğa',    icon:'🌊', ad:'Eğirdir Gölü',         lon:30.8570, lat:37.8740, alt:4000, heading:270, pitch:-30, desc:'Türkiye\'nin 4. büyük tatlı su gölü. 468 km² yüzey alanı.' },
-    { id:'kovada',    kat:'Doğa',    icon:'🌲', ad:'Kovada Gölü Milli Parkı', lon:30.9200, lat:37.7100, alt:3500, heading:180, pitch:-32, desc:'Türkiye\'nin ilk milli parklarından. Saf doğası ile ünlü.' },
-    { id:'yazili',    kat:'Doğa',    icon:'🏞', ad:'Yazılı Kanyon',         lon:30.3700, lat:37.9500, alt:2800, heading:90,  pitch:-25, desc:'Türkiye\'nin en uzun kanyonlarından biri. 14 km uzunluğunda.' },
-    /* TARİHİ */
-    { id:'kaymakam',  kat:'Tarih',   icon:'🕌', ad:'Kaymakamlar Camii',     lon:30.5540, lat:37.7642, alt:1600, heading:0,   pitch:-20, desc:'18. yüzyıldan kalma, Isparta\'nın simgesi olan tarihi cami.' },
-    { id:'firdevs',   kat:'Tarih',   icon:'🏛', ad:'Firdevs Bey Camii',     lon:30.5520, lat:37.7650, alt:1500, heading:45,  pitch:-18, desc:'15. yüzyılda inşa edilmiş, ahşap işçiliğiyle öne çıkan tarihi yapı.' },
-    { id:'egirdir_k', kat:'Tarih',   icon:'🏰', ad:'Eğirdir Kalesi',        lon:30.8560, lat:37.8760, alt:2200, heading:160, pitch:-22, desc:'Selçuklu dönemine ait, göl kenarında konumlanan tarihi kale.' },
-    { id:'sagalassos',kat:'Tarih',   icon:'🏺', ad:'Sagalassos Antik Kenti', lon:30.5200, lat:37.6800, alt:3800, heading:20,  pitch:-30, desc:'MÖ 1200\'den kalma, Toros Dağları\'ndaki muhteşem antik kent.' },
-    /* ŞEHİR */
-    { id:'merkez',    kat:'Şehir',   icon:'🏙', ad:'Isparta Merkezi',       lon:30.5550, lat:37.7640, alt:3000, heading:0,   pitch:-35, desc:'Isparta şehir merkezinin kuş bakışı görünümü.' },
-    { id:'havaalani', kat:'Şehir',   icon:'✈',  ad:'Isparta Havalimanı',    lon:30.5682, lat:37.8553, alt:2500, heading:180, pitch:-25, desc:'Isparta Süleyman Demirel Havalimanı ve çevresi.' },
-    { id:'gul',       kat:'Şehir',   icon:'🌹', ad:'Gül Bahçeleri',         lon:30.4800, lat:37.8200, alt:2200, heading:90,  pitch:-28, desc:'Dünyanın gül yağı üretiminin %70\'ini karşılayan ünlü gül bahçeleri.' },
-    /* GÖLLER */
-    { id:'golcuk',    kat:'Göl',     icon:'🏔', ad:'Gölcük Tabiat Parkı',   lon:30.6100, lat:37.8000, alt:2800, heading:270, pitch:-30, desc:'Volkanik krater gölü. İsparta\'nın en popüler piknik alanı.' },
-    { id:'beysehir',  kat:'Göl',     icon:'💧', ad:'Beyşehir Gölü (kıyı)',  lon:31.0500, lat:37.8000, alt:4500, heading:300, pitch:-32, desc:'Türkiye\'nin en büyük tatlı su gölü sınırları içinde.' },
-  ];
+    var NOKTALAR = {
+        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1400 },
+        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
+        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1800 },
+        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1500 },
+    };
 
-  /* Kategorilere göre sırala */
-  var KATEGORI_SIRA = ['Doğa','Tarih','Şehir','Göl'];
+    var viewer = new Cesium.Viewer('sim-container', {
+        baseLayerPicker      : false,
+        geocoder             : false,
+        homeButton           : false,
+        sceneModePicker      : false,
+        navigationHelpButton : false,
+        animation            : false,
+        timeline             : false,
+        fullscreenButton     : false,
+        infoBox              : false,
+        selectionIndicator   : false,
+        shadows              : false,
+        shouldAnimate        : true,
+    });
 
-  /* ══════════════════════════════════════
-     CESIUM VIEWER
-  ══════════════════════════════════════ */
-  var viewer = new Cesium.Viewer('map', {
-    baseLayerPicker:false, geocoder:false, homeButton:false,
-    sceneModePicker:false, navigationHelpButton:false,
-    animation:false, timeline:false, fullscreenButton:false,
-    infoBox:false, selectionIndicator:false,
-    shadows:false, shouldAnimate:true,
-  });
+    Cesium.CesiumTerrainProvider.fromIonAssetId(1)
+        .then(function(tp) { viewer.terrainProvider = tp; })
+        .catch(function(e) { console.warn('Terrain hatası.', e); });
 
-  Cesium.CesiumTerrainProvider.fromIonAssetId(1)
-    .then(function(tp) { viewer.terrainProvider = tp; })
-    .catch(function(e) { console.warn('Terrain:', e); });
+    viewer.scene.skyAtmosphere.show            = true; 
+    viewer.scene.globe.enableLighting          = false;
+    viewer.scene.fog.enabled                   = true;
+    viewer.scene.globe.maximumScreenSpaceError = 8;
+    viewer.resolutionScale                     = 0.85; 
 
-  viewer.scene.skyAtmosphere.show = true;
-  viewer.scene.globe.enableLighting = false;
-  viewer.scene.fog.enabled = true;
-  viewer.scene.fog.density = 0.0002;
-  viewer.scene.globe.maximumScreenSpaceError = 4;
-  viewer.resolutionScale = 0.85;
+    viewer.scene.screenSpaceCameraController.enableRotate = false;
+    viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    viewer.scene.screenSpaceCameraController.enableZoom = false;
+    viewer.scene.screenSpaceCameraController.enableTilt = false;
+    viewer.scene.screenSpaceCameraController.enableLook = false;
 
-  /* ── Yerler haritaya pin olarak ekle ── */
-  YERLER.forEach(function(y) {
+    var simEl = document.getElementById('sim-container');
+    simEl.addEventListener('click', function() { this.focus(); });
+
+    var lon = NOKTALAR.havaalani.lon;
+    var lat = NOKTALAR.havaalani.lat;
+    var alt = NOKTALAR.havaalani.alt;
+    
+    var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+    
+    var heading = 0;          
+    var pitch = -0.02;        
+    var roll = 0;             
+
+    var ucakKonteyner = viewer.entities.add({
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { 
+            return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, new Cesium.HeadingPitchRoll(heading, pitch, roll));
+        }, false),
+        label : { 
+            text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -35)
+        }
+    });
+
+    // Gövde
     viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(y.lon, y.lat, 0),
-      billboard: {
-        image: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40">' +
-          '<circle cx="16" cy="16" r="14" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2.5"/>' +
-          '<text x="16" y="21" text-anchor="middle" font-size="14">' + y.icon + '</text>' +
-          '<line x1="16" y1="30" x2="16" y2="40" stroke="#3b82f6" stroke-width="2"/>' +
-          '</svg>'
-        ),
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        scale: 1.0,
-      },
-      label: {
-        text: y.ad,
-        font: 'bold 12px sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -44),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 80000),
-      },
-      properties: { yerId: y.id },
+        parent : ucakKonteyner,
+        cylinder : { 
+            length : 24.0, 
+            topRadius : 0.2, 
+            bottomRadius : 1.5, 
+            material : Cesium.Color.fromCssColorString('#3b82f6') 
+        },
+        orientation : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(90))
     });
-  });
 
-  /* Pin tıklama */
-  var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  handler.setInputAction(function(click) {
-    var picked = viewer.scene.pick(click.position);
-    if (Cesium.defined(picked) && Cesium.defined(picked.id) && picked.id.properties) {
-      var yerId = picked.id.properties.yerId.getValue();
-      var y = YERLER.find(function(x){ return x.id === yerId; });
-      if (y) kameraUc(y, false);
-    }
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  /* ══════════════════════════════════════
-     KAMERA
-  ══════════════════════════════════════ */
-  function kameraUc(y, anlik) {
-    var dest = Cesium.Cartesian3.fromDegrees(y.lon, y.lat, y.alt);
-    var ori  = { heading: Cesium.Math.toRadians(y.heading), pitch: Cesium.Math.toRadians(y.pitch), roll: 0 };
-    if (anlik) {
-      viewer.camera.setView({ destination: dest, orientation: ori });
-    } else {
-      viewer.camera.flyTo({ destination: dest, orientation: ori, duration: 3,
-        easingFunction: Cesium.EasingFunction.SINUSOIDAL_IN_OUT });
-    }
-    /* Sidebar aktif et */
-    aktifYerAyarla(y.id);
-    /* Toolbar buton */
-    ['havaalani','davraz','egirdir','merkez'].forEach(function(k) {
-      var b = document.getElementById('btn-'+k);
-      if (b) b.classList.toggle('tbtn--on', k === y.id);
+    // Kanatlar
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        box : { 
+            dimensions : new Cesium.Cartesian3(4.0, 24.0, 0.4), 
+            material : Cesium.Color.fromCssColorString('#ef4444') 
+        }
     });
-  }
 
-  /* İlk görünüm */
-  kameraUc(YERLER.find(function(y){ return y.id==='havaalani'; }), true);
-
-  /* ══════════════════════════════════════
-     SIDEBAR LİSTE OLUŞTUR
-  ══════════════════════════════════════ */
-  var listEl = document.getElementById('yer-list');
-  KATEGORI_SIRA.forEach(function(kat) {
-    var baslik = document.createElement('div');
-    baslik.style.cssText = 'font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:4px 2px 2px;';
-    baslik.textContent = kat;
-    listEl.appendChild(baslik);
-
-    YERLER.filter(function(y){ return y.kat===kat; }).forEach(function(y) {
-      var card = document.createElement('div');
-      card.className = 'yer-card';
-      card.id = 'yer-'+y.id;
-      card.innerHTML =
-        '<div class="yer-card__row">' +
-        '<span class="yer-card__icon">' + y.icon + '</span>' +
-        '<div><div class="yer-card__name">' + y.ad + '</div>' +
-        '<div class="yer-card__kat">' + y.kat + '</div></div></div>' +
-        '<div class="yer-card__desc">' + y.desc + '</div>';
-      card.addEventListener('click', function() {
-        autoTogglePause();
-        kameraUc(y, false);
-      });
-      listEl.appendChild(card);
+    // Kuyruk
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        box : { 
+            dimensions : new Cesium.Cartesian3(4.0, 0.4, 5.0), 
+            material : Cesium.Color.fromCssColorString('#f59e0b') 
+        },
+        position : new Cesium.CallbackProperty(function() {
+            return Cesium.Cartesian3.fromElements(-10.0, 0.0, 2.0);
+        }, false)
     });
-  });
 
-  function aktifYerAyarla(id) {
-    document.querySelectorAll('.yer-card').forEach(function(c){ c.classList.remove('yer-card--aktif'); });
-    var el = document.getElementById('yer-'+id);
-    if (el) {
-      el.classList.add('yer-card--aktif');
-      el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    var mevcutHiz = 100;       
+    var hedefHiz = 115;
+    var minHiz = 40;
+    var maxHiz = 250;
+    
+    var tuslar = {};
+
+    window.addEventListener('keydown', function(e) {
+        var key = e.key.toLowerCase();
+        tuslar[key] = true;
+        if (['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(key) > -1) {
+            if(document.activeElement === simEl) e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', function(e) { 
+        tuslar[e.key.toLowerCase()] = false; 
+    });
+
+    document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
+        var key = btn.getAttribute('data-key');
+        btn.addEventListener('touchstart', function(e) { 
+            tuslar[key] = true; 
+            e.preventDefault(); 
+        }, {passive: false});
+        btn.addEventListener('touchend', function(e) { 
+            tuslar[key] = false; 
+            e.preventDefault(); 
+        }, {passive: false});
+    });
+
+    var oncekiZaman = performance.now();
+    var hudSayac = 0;
+
+    function lerp(start, end, amt) {
+        return (1 - amt) * start + amt * end;
     }
-    var y = YERLER.find(function(x){ return x.id===id; });
-    document.getElementById('auto-name').textContent = y ? y.ad : '';
-  }
 
-  /* ══════════════════════════════════════
-     OTOPİLOT
-  ══════════════════════════════════════ */
-  var autoAktif = true;
-  var autoIdx   = 0;
-  var autoZaman = 0;
-  var AUTO_SURE = 8000; /* ms */
+    function guncelle(simdi) {
+        requestAnimationFrame(guncelle);
 
-  /* Fare dokunuşunda 10 sn duraklat */
-  var fareTimer;
-  ['mousedown','touchstart','wheel'].forEach(function(ev) {
-    viewer.scene.canvas.addEventListener(ev, function() {
-      autoAktif = false;
-      document.getElementById('auto-btn').textContent = '▶ Devam';
-      clearTimeout(fareTimer);
-      fareTimer = setTimeout(function() {
-        autoAktif = true;
-        document.getElementById('auto-btn').textContent = '⏸ Duraklat';
-      }, 10000);
-    }, { passive:true });
-  });
+        var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
+        oncekiZaman = simdi;
 
-  var sonZaman = performance.now();
-  function autoDongu(simdi) {
-    requestAnimationFrame(autoDongu);
-    var dt = simdi - sonZaman;
-    sonZaman = simdi;
-    if (!autoAktif) return;
-    autoZaman += dt;
-    document.getElementById('auto-fill').style.width = Math.min(autoZaman/AUTO_SURE*100,100)+'%';
-    if (autoZaman >= AUTO_SURE) {
-      autoZaman = 0;
-      autoIdx = (autoIdx + 1) % YERLER.length;
-      kameraUc(YERLER[autoIdx], false);
+        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz);
+        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz);
+        mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
+
+        // 🌟 JET DÖNÜŞÜ: Çarpanı 1.3'ten 2.8'e çekerek dönüşleri acayip serileştirdik.
+        if (tuslar['a']) {
+            heading -= 2.8 * dt;  
+            roll = lerp(roll, -0.4, 5 * dt);
+        } else if (tuslar['d']) {
+            heading += 2.8 * dt;  
+            roll = lerp(roll, 0.4, 5 * dt);
+        } else {
+            roll = lerp(roll, 0, 4 * dt); 
+        }
+
+        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
+        else pitch = lerp(pitch, 0, 2 * dt);
+
+        var cosPitch = Math.cos(pitch);
+        var mesafeYatay = mevcutHiz * dt;
+        
+        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
+        var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
+        var deltaAlt = Math.sin(pitch) * mesafeYatay;
+
+        lon += Cesium.Math.toDegrees(deltaLon);
+        lat += Cesium.Math.toDegrees(deltaLat);
+        alt = Math.max(alt + deltaAlt, 1050); 
+
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+
+        // 🌟 YAKIN KAMERA: Kamerayı uçağın tam 55 metre arkasına sabitledik.
+        // Artık uçak ekranı dolduracak ve en ufak dönüş hamleni anında göreceksin.
+        var kameraMesafeDerece = 55 / 111000; 
+        var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
+        var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
+        var kamAlt = alt + 12 + (Math.sin(pitch) * 10);
+
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8) + (pitch * 0.15), 6 * dt), 
+                roll: roll * -0.1 
+            }
+        });
+
+        hudSayac++;
+        if (hudSayac % 10 === 0) {
+            var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
+            var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
+            document.getElementById('hud-alt').textContent    = Math.round(alt).toLocaleString() + ' m';
+            document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz * 3.6) + ' km/s';
+            document.getElementById('hud-pos').textContent    = lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E';
+            document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
+            document.getElementById('hud-dirstr').textContent = yonStr;
+        }
     }
-  }
-  requestAnimationFrame(autoDongu);
+    
+    requestAnimationFrame(guncelle);
 
-  window.autoToggle = function() {
-    autoAktif = !autoAktif;
-    document.getElementById('auto-btn').textContent = autoAktif ? '⏸ Duraklat' : '▶ Devam';
-  };
-  function autoTogglePause() {
-    autoAktif = false;
-    autoZaman = 0;
-    document.getElementById('auto-btn').textContent = '▶ Devam';
-  }
+    window.simNoktaGit = function(id, btn) {
+        var n = NOKTALAR[id]; if (!n) return;
+        lon = n.lon; lat = n.lat; alt = n.alt;
+        heading = 0; pitch = -0.02; roll = 0;
+        hedefHiz = 110; mevcutHiz = 100;
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        
+        document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
+        if (btn) btn.classList.add('sim-toolbar__btn--aktif');
+    };
 
-  /* ══════════════════════════════════════
-     TOOLBAR KISA YOLLAR
-  ══════════════════════════════════════ */
-  window.yerGit = function(id, btn) {
-    autoTogglePause();
-    var y = YERLER.find(function(x){ return x.id===id; });
-    if (y) kameraUc(y, false);
-  };
-
-  /* ══════════════════════════════════════
-     TAM EKRAN
-  ══════════════════════════════════════ */
-  var tamEkran = false;
-  window.simTamEkran = function() {
-    tamEkran = !tamEkran;
-    document.body.classList.toggle('sim-fullscreen', tamEkran);
-    document.body.style.overflow = tamEkran ? 'hidden' : '';
-    setTimeout(function(){ viewer.resize(); }, 100);
-  };
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && tamEkran) simTamEkran();
-  });
+    var tamEkranAcik = false;
+    window.simTamEkran = function() {
+        tamEkranAcik = !tamEkranAcik;
+        document.body.classList.toggle('sim-fullscreen', tamEkranAcik);
+        document.body.style.overflow = tamEkranAcik ? 'hidden' : '';
+        viewer.resize();
+    };
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && tamEkranAcik) simTamEkran(); });
 
 })();
 </script>
