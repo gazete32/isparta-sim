@@ -86,6 +86,32 @@
                           border-radius:4px; padding:1px 7px; font-family:monospace;
                           font-size:11px; color:var(--text); }
 
+  /* OTOPİLOT BARI */
+  .auto-bar { display:flex; align-items:center; gap:8px; margin-top:8px;
+              background:var(--bg2); border:1px solid var(--border);
+              border-radius:8px; padding:.5rem .9rem; font-size:12px; }
+  .auto-bar__ico  { font-size:16px; }
+  .auto-bar__lbl  { color:var(--text3); white-space:nowrap; }
+  .auto-bar__name { font-weight:700; color:var(--text); min-width:130px; }
+  .auto-bar__prog { flex:1; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
+  .auto-bar__fill { height:100%; background:var(--primary); border-radius:2px; width:0%; }
+  .auto-bar__btn  { background:none; border:1px solid var(--border); color:var(--text3);
+                    border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; white-space:nowrap; }
+  .auto-bar__btn:hover { background:var(--bg3); color:var(--text); }
+
+  /* YER LİSTESİ */
+  .yer-baslik { font-size:13px; font-weight:700; color:var(--text); margin: 1rem 0 .5rem; 
+                padding-bottom:.4rem; border-bottom:1px solid var(--border); }
+  .yer-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:8px; margin-bottom:1rem; }
+  .yer-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+              padding:10px 12px; cursor:pointer; transition:border-color .15s, background .15s;
+              display:flex; align-items:flex-start; gap:10px; }
+  .yer-card:hover { background:var(--bg3); border-color:var(--primary); }
+  .yer-card--aktif { background:#1a2535; border-color:var(--primary); }
+  .yer-card__icon { font-size:20px; flex-shrink:0; margin-top:1px; }
+  .yer-card__name { font-size:12px; font-weight:700; }
+  .yer-card__desc { font-size:11px; color:var(--text3); margin-top:3px; line-height:1.4; }
+
   .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
   .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
   .cesium-widget-credits { display:none !important; }
@@ -142,33 +168,51 @@
   </div>
 
   <div class="sim-container-wrapper">
-      <div id="sim-container" tabindex="0"></div>
-      
-      <div class="sim-mobile-controls">
-          <div class="sim-dpad">
-              <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
-              <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
-              <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
-          </div>
-          <div class="sim-dpad" style="grid-template-columns: repeat(1, 46px); grid-template-rows: repeat(2, 42px); margin-top:20px;">
-              <div class="sim-joy-btn" data-key="w" style="border-radius: 6px;">+W</div>
-              <div class="sim-joy-btn" data-key="s" style="border-radius: 6px; margin-top:4px;">-S</div>
-          </div>
+    <div id="sim-container" tabindex="0"></div>
+    <div class="sim-mobile-controls">
+      <div class="sim-dpad">
+        <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
+        <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
+        <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
       </div>
+      <div class="sim-dpad" style="grid-template-columns:repeat(1,46px);grid-template-rows:repeat(2,42px);margin-top:20px;">
+        <div class="sim-joy-btn" data-key="w" style="border-radius:6px;">+W</div>
+        <div class="sim-joy-btn" data-key="s" style="border-radius:6px;margin-top:4px;">-S</div>
+      </div>
+    </div>
   </div>
-  
-  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla, <b>A/D</b> Sağa/Sola Jet Dönüşü, <b>E/Q</b> Yüksel/Alçal.</p>
+
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla · <b>A/D</b> Dön · <b>E/Q</b> Yüksel/Alçal</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
+
+  <!-- OTOPİLOT BARI -->
+  <div class="auto-bar">
+    <span class="auto-bar__ico">🤖</span>
+    <span class="auto-bar__lbl">Otopilot:</span>
+    <span class="auto-bar__name" id="auto-hedef">Kapalı</span>
+    <div class="auto-bar__prog"><div class="auto-bar__fill" id="auto-fill"></div></div>
+    <button class="auto-bar__btn" id="auto-btn" onclick="autoToggle()">▶ Başlat</button>
+  </div>
+
+  <!-- TARİHİ YERLER -->
+  <div class="yer-baslik">📍 Isparta'yı Keşfet — Tıkla, Uçak Oraya Gitsin</div>
+  <div class="yer-grid" id="yer-grid"></div>
 
   <div class="sim-controls">
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">✈ Uçuş Kontrolleri</div>
       <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Sola / Sağa Keskin Dönüş</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Sola / Sağa Dön</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Yüksel / Alçal</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
     </div>
     <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">📍 Noktalar</div>
+      <div class="sim-ctrl-card__title">🤖 Otopilot</div>
+      <div class="sim-ctrl-card__item"><span>Otopilot başlat/durdur</span><span><span class="sim-ctrl-card__key">Oto Butonu</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Yer seç → uçak uçar</span><span><span class="sim-ctrl-card__key">Liste</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Manuel kontrol → oto kapanır</span><span><span class="sim-ctrl-card__key">W/A/S/D</span></span></div>
+    </div>
+    <div class="sim-ctrl-card">
+      <div class="sim-ctrl-card__title">📍 Hızlı Noktalar</div>
       <div class="sim-ctrl-card__item"><span>Havalimanı</span><span style="color:var(--text3);font-size:11px;">37.855°N 30.568°E</span></div>
       <div class="sim-ctrl-card__item"><span>Davraz Dağı</span><span style="color:var(--text3);font-size:11px;">37.741°N 30.755°E</span></div>
       <div class="sim-ctrl-card__item"><span>Eğirdir Gölü</span><span style="color:var(--text3);font-size:11px;">37.874°N 30.857°E</span></div>
@@ -192,46 +236,61 @@
         return;
     }
 
-    /* ── CESIUM ION TOKEN ── */
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
+    /* ── TÜM NOKTALAR (toolbar + yerler listesi) ── */
     var NOKTALAR = {
-        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1400 },
-        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
-        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1800 },
-        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1500 },
+        havaalani  : { ad:'Havalimanı',           icon:'✈',  lon:30.5682, lat:37.8553, alt:1400 },
+        davraz     : { ad:'Davraz Dağı',           icon:'⛰', lon:30.7550, lat:37.7410, alt:2800 },
+        egirdir    : { ad:'Eğirdir Gölü',          icon:'🌊', lon:30.8570, lat:37.8740, alt:1800 },
+        merkez     : { ad:'Isparta Merkezi',       icon:'🏙', lon:30.5550, lat:37.7640, alt:1500 },
+        sagalassos : { ad:'Sagalassos Antik Kenti',icon:'🏺', lon:30.5200, lat:37.6800, alt:2200, desc:'MÖ 1200\'den kalma Toros Dağları\'ndaki muhteşem antik kent.' },
+        egirdir_k  : { ad:'Eğirdir Kalesi',        icon:'🏰', lon:30.8560, lat:37.8760, alt:1600, desc:'Selçuklu dönemine ait, göl kenarında konumlanan tarihi kale.' },
+        kaymakam   : { ad:'Kaymakamlar Camii',     icon:'🕌', lon:30.5540, lat:37.7642, alt:1300, desc:'18. yüzyıldan kalma, Isparta\'nın simgesi.' },
+        firdevs    : { ad:'Firdevs Bey Camii',     icon:'🏛', lon:30.5520, lat:37.7650, alt:1300, desc:'15. yüzyılda inşa edilmiş ahşap işçiliğiyle öne çıkan yapı.' },
+        yazili     : { ad:'Yazılı Kanyon',          icon:'🏞', lon:30.3700, lat:37.9500, alt:2000, desc:'Türkiye\'nin en uzun kanyonlarından, 14 km uzunluğunda.' },
+        kovada     : { ad:'Kovada Gölü Milli Parkı',icon:'🌲', lon:30.9200, lat:37.7100, alt:2000, desc:'Türkiye\'nin ilk milli parklarından, saf doğasıyla ünlü.' },
+        golcuk     : { ad:'Gölcük Tabiat Parkı',   icon:'🏔', lon:30.6100, lat:37.8000, alt:1800, desc:'Volkanik krater gölü, Isparta\'nın en popüler piknik alanı.' },
+        gul        : { ad:'Gül Bahçeleri',          icon:'🌹', lon:30.4800, lat:37.8200, alt:1600, desc:'Dünyanın gül yağı üretiminin %70\'ini karşılayan bahçeler.' },
     };
 
+    /* Yerler listesini oluştur (toolbar olanlar hariç) */
+    var YER_LISTESI = ['sagalassos','egirdir_k','kaymakam','firdevs','yazili','kovada','golcuk','gul'];
+    var yerGrid = document.getElementById('yer-grid');
+    YER_LISTESI.forEach(function(id) {
+        var n = NOKTALAR[id];
+        var card = document.createElement('div');
+        card.className = 'yer-card';
+        card.id = 'yer-'+id;
+        card.innerHTML = '<span class="yer-card__icon">'+n.icon+'</span>' +
+            '<div><div class="yer-card__name">'+n.ad+'</div>' +
+            '<div class="yer-card__desc">'+(n.desc||'')+'</div></div>';
+        card.addEventListener('click', function() { simNoktaGit(id, null); });
+        yerGrid.appendChild(card);
+    });
+
     var viewer = new Cesium.Viewer('sim-container', {
-        baseLayerPicker      : false,
-        geocoder             : false,
-        homeButton           : false,
-        sceneModePicker      : false,
-        navigationHelpButton : false,
-        animation            : false,
-        timeline             : false,
-        fullscreenButton     : false,
-        infoBox              : false,
-        selectionIndicator   : false,
-        shadows              : false,
-        shouldAnimate        : true,
+        baseLayerPicker:false, geocoder:false, homeButton:false,
+        sceneModePicker:false, navigationHelpButton:false,
+        animation:false, timeline:false, fullscreenButton:false,
+        infoBox:false, selectionIndicator:false, shadows:false, shouldAnimate:true,
     });
 
     Cesium.CesiumTerrainProvider.fromIonAssetId(1)
         .then(function(tp) { viewer.terrainProvider = tp; })
         .catch(function(e) { console.warn('Terrain hatası.', e); });
 
-    viewer.scene.skyAtmosphere.show            = true; 
-    viewer.scene.globe.enableLighting          = false;
-    viewer.scene.fog.enabled                   = true;
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.globe.enableLighting = false;
+    viewer.scene.fog.enabled = true;
     viewer.scene.globe.maximumScreenSpaceError = 8;
-    viewer.resolutionScale                     = 0.85; 
+    viewer.resolutionScale = 0.85;
 
-    viewer.scene.screenSpaceCameraController.enableRotate = false;
+    viewer.scene.screenSpaceCameraController.enableRotate    = false;
     viewer.scene.screenSpaceCameraController.enableTranslate = false;
-    viewer.scene.screenSpaceCameraController.enableZoom = false;
-    viewer.scene.screenSpaceCameraController.enableTilt = false;
-    viewer.scene.screenSpaceCameraController.enableLook = false;
+    viewer.scene.screenSpaceCameraController.enableZoom      = false;
+    viewer.scene.screenSpaceCameraController.enableTilt      = false;
+    viewer.scene.screenSpaceCameraController.enableLook      = false;
 
     var simEl = document.getElementById('sim-container');
     simEl.addEventListener('click', function() { this.focus(); });
@@ -239,172 +298,209 @@
     var lon = NOKTALAR.havaalani.lon;
     var lat = NOKTALAR.havaalani.lat;
     var alt = NOKTALAR.havaalani.alt;
-    
     var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-    
-    var heading = 0;          
-    var pitch = -0.02;        
-    var roll = 0;             
+    var heading = 0, pitch = -0.02, roll = 0;
+    var mevcutHiz = 100, hedefHiz = 115;
+    var minHiz = 40, maxHiz = 250;
 
+    /* Uçak entity */
     var ucakKonteyner = viewer.entities.add({
-        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
-        orientation : new Cesium.CallbackProperty(function() { 
+        position: new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation: new Cesium.CallbackProperty(function() {
             return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, new Cesium.HeadingPitchRoll(heading, pitch, roll));
         }, false),
-        label : { 
-            text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(0, -35)
-        }
+        label: { text:'✈ Gazete32', font:'bold 12px sans-serif', fillColor:Cesium.Color.WHITE,
+                 outlineColor:Cesium.Color.BLACK, outlineWidth:3,
+                 style:Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset:new Cesium.Cartesian2(0,-35) }
+    });
+    viewer.entities.add({ parent:ucakKonteyner,
+        cylinder:{ length:24, topRadius:0.2, bottomRadius:1.5, material:Cesium.Color.fromCssColorString('#3b82f6') },
+        orientation:Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(90))
+    });
+    viewer.entities.add({ parent:ucakKonteyner,
+        box:{ dimensions:new Cesium.Cartesian3(4,24,0.4), material:Cesium.Color.fromCssColorString('#ef4444') }
     });
 
-    // Gövde
-    viewer.entities.add({
-        parent : ucakKonteyner,
-        cylinder : { 
-            length : 24.0, 
-            topRadius : 0.2, 
-            bottomRadius : 1.5, 
-            material : Cesium.Color.fromCssColorString('#3b82f6') 
-        },
-        orientation : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(90))
-    });
-
-    // Kanatlar
-    viewer.entities.add({
-        parent : ucakKonteyner,
-        box : { 
-            dimensions : new Cesium.Cartesian3(4.0, 24.0, 0.4), 
-            material : Cesium.Color.fromCssColorString('#ef4444') 
-        }
-    });
-
-    // Kuyruk
-    viewer.entities.add({
-        parent : ucakKonteyner,
-        box : { 
-            dimensions : new Cesium.Cartesian3(4.0, 0.4, 5.0), 
-            material : Cesium.Color.fromCssColorString('#f59e0b') 
-        },
-        position : new Cesium.CallbackProperty(function() {
-            return Cesium.Cartesian3.fromElements(-10.0, 0.0, 2.0);
-        }, false)
-    });
-
-    var mevcutHiz = 100;       
-    var hedefHiz = 115;
-    var minHiz = 40;
-    var maxHiz = 250;
-    
+    /* Tuş dinleyici */
     var tuslar = {};
-
     window.addEventListener('keydown', function(e) {
-        var key = e.key.toLowerCase();
-        tuslar[key] = true;
-        if (['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(key) > -1) {
-            if(document.activeElement === simEl) e.preventDefault();
-        }
+        var key = e.key.toLowerCase(); tuslar[key] = true;
+        if (['w','a','s','d','q','e'].indexOf(key) > -1 && document.activeElement === simEl) e.preventDefault();
+        /* Manuel kontrol → otopilotu kapat */
+        if (['w','a','s','d','q','e'].indexOf(key) > -1) autoKapat();
     });
-    window.addEventListener('keyup', function(e) { 
-        tuslar[e.key.toLowerCase()] = false; 
-    });
-
+    window.addEventListener('keyup', function(e) { tuslar[e.key.toLowerCase()] = false; });
     document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
         var key = btn.getAttribute('data-key');
-        btn.addEventListener('touchstart', function(e) { 
-            tuslar[key] = true; 
-            e.preventDefault(); 
-        }, {passive: false});
-        btn.addEventListener('touchend', function(e) { 
-            tuslar[key] = false; 
-            e.preventDefault(); 
-        }, {passive: false});
+        btn.addEventListener('touchstart', function(e) { tuslar[key]=true; autoKapat(); e.preventDefault(); }, {passive:false});
+        btn.addEventListener('touchend',   function(e) { tuslar[key]=false; e.preventDefault(); }, {passive:false});
     });
 
-    var oncekiZaman = performance.now();
-    var hudSayac = 0;
+    /* ── OTOPİLOT ── */
+    var autoAktif  = false;
+    var autoHedef  = null;   /* { lon, lat, alt } */
+    var AUTO_YAKLASMA = 0.005; /* derece — hedefe bu kadar yaklaşınca "vardık" */
 
-    function lerp(start, end, amt) {
-        return (1 - amt) * start + amt * end;
+    function autoKapat() {
+        if (!autoAktif) return;
+        autoAktif = false;
+        autoHedef = null;
+        document.getElementById('auto-btn').textContent  = '▶ Başlat';
+        document.getElementById('auto-hedef').textContent = 'Kapalı';
+        document.getElementById('auto-fill').style.width = '0%';
+        document.querySelectorAll('.yer-card').forEach(function(c){ c.classList.remove('yer-card--aktif'); });
     }
 
-    function guncelle(simdi) {
-        requestAnimationFrame(guncelle);
+    function autoBaslat(id) {
+        var n = NOKTALAR[id]; if (!n) return;
+        autoAktif = true;
+        autoHedef = n;
+        document.getElementById('auto-btn').textContent  = '⏹ Durdur';
+        document.getElementById('auto-hedef').textContent = n.icon + ' ' + n.ad + '\'a gidiyor...';
+        /* Kartı aktif yap */
+        document.querySelectorAll('.yer-card').forEach(function(c){ c.classList.remove('yer-card--aktif'); });
+        var el = document.getElementById('yer-'+id);
+        if (el) el.classList.add('yer-card--aktif');
+    }
 
-        var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
-        oncekiZaman = simdi;
+    window.autoToggle = function() {
+        if (autoAktif) { autoKapat(); }
+        else {
+            /* İlk yerden başlat */
+            autoBaslat(YER_LISTESI[0]);
+        }
+    };
 
-        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz);
-        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz);
-        mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
+    /* Otopilot fizik döngüsü — aynı heading/pitch/hız mantığı ama hedef yönüne döner */
+    function autoGuncelle(dt) {
+        if (!autoAktif || !autoHedef) return;
 
-        // 🌟 JET DÖNÜŞÜ: Çarpanı 1.3'ten 2.8'e çekerek dönüşleri acayip serileştirdik.
-        if (tuslar['a']) {
-            heading -= 2.8 * dt;  
-            roll = lerp(roll, -0.4, 5 * dt);
-        } else if (tuslar['d']) {
-            heading += 2.8 * dt;  
-            roll = lerp(roll, 0.4, 5 * dt);
-        } else {
-            roll = lerp(roll, 0, 4 * dt); 
+        var dLon = autoHedef.lon - lon;
+        var dLat = autoHedef.lat - lat;
+        var mesafe = Math.sqrt(dLon*dLon + dLat*dLat);
+
+        /* Hedefe yaklaştık mı? */
+        if (mesafe < AUTO_YAKLASMA) {
+            /* Sonraki yere geç */
+            var simdikiIdx = YER_LISTESI.indexOf(
+                YER_LISTESI.find(function(id){ return NOKTALAR[id] === autoHedef; })
+            );
+            var sonrakiIdx = (simdikiIdx + 1) % YER_LISTESI.length;
+            document.getElementById('auto-fill').style.width = '100%';
+            setTimeout(function() {
+                document.getElementById('auto-fill').style.width = '0%';
+                autoBaslat(YER_LISTESI[sonrakiIdx]);
+            }, 500);
+            autoHedef = null;
+            return;
         }
 
-        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
-        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
-        else pitch = lerp(pitch, 0, 2 * dt);
+        /* İlerleme yüzdesi */
+        var baslangicMesafe = autoHedef._baslangicMesafe || mesafe;
+        if (!autoHedef._baslangicMesafe) autoHedef._baslangicMesafe = mesafe;
+        var ilerleme = Math.max(0, Math.min(100, (1 - mesafe / baslangicMesafe) * 100));
+        document.getElementById('auto-fill').style.width = ilerleme + '%';
 
+        /* Hedef yönü hesapla */
+        var hedefHeading = Math.atan2(-dLon, dLat);
+
+        /* Mevcut heading'i hedef yönüne döndür */
+        var headingFark = hedefHeading - heading;
+        while (headingFark >  Math.PI) headingFark -= 2*Math.PI;
+        while (headingFark < -Math.PI) headingFark += 2*Math.PI;
+        heading += headingFark * Math.min(2.0 * dt, 1.0);
+        roll = headingFark * 0.3;
+        roll = Math.max(-0.5, Math.min(0.5, roll));
+
+        /* Yükseklik hedefine yaklaş */
+        var altFark = autoHedef.alt - alt;
+        pitch = Math.max(-0.3, Math.min(0.3, altFark * 0.001));
+
+        /* Hız */
+        hedefHiz = 150;
+        mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
+
+        /* Hareket */
         var cosPitch = Math.cos(pitch);
         var mesafeYatay = mevcutHiz * dt;
-        
         var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
-        var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
+        var deltaLat = ( Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
         var deltaAlt = Math.sin(pitch) * mesafeYatay;
 
         lon += Cesium.Math.toDegrees(deltaLon);
         lat += Cesium.Math.toDegrees(deltaLat);
-        alt = Math.max(alt + deltaAlt, 1050); 
-
+        alt = Math.max(alt + deltaAlt, 1100);
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+    }
 
-        // 🌟 YAKIN KAMERA: Kamerayı uçağın tam 55 metre arkasına sabitledik.
-        // Artık uçak ekranı dolduracak ve en ufak dönüş hamleni anında göreceksin.
-        var kameraMesafeDerece = 55 / 111000; 
+    function lerp(start, end, amt) { return (1-amt)*start + amt*end; }
+
+    var oncekiZaman = performance.now();
+    var hudSayac = 0;
+
+    function guncelle(simdi) {
+        requestAnimationFrame(guncelle);
+        var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
+        oncekiZaman = simdi;
+
+        if (autoAktif) {
+            autoGuncelle(dt);
+        } else {
+            /* MANUEL KONTROL — orijinal kod aynen */
+            if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50*dt, maxHiz);
+            if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50*dt, minHiz);
+            mevcutHiz = lerp(mevcutHiz, hedefHiz, 3*dt);
+
+            if (tuslar['a'])      { heading -= 2.8*dt; roll = lerp(roll,-0.4,5*dt); }
+            else if (tuslar['d']) { heading += 2.8*dt; roll = lerp(roll, 0.4,5*dt); }
+            else                  { roll = lerp(roll, 0, 4*dt); }
+
+            if (tuslar['e'])      pitch = lerp(pitch,  0.3, 3*dt);
+            else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3*dt);
+            else                  pitch = lerp(pitch,  0,   2*dt);
+
+            var cosPitch = Math.cos(pitch);
+            var mesafeYatay = mevcutHiz * dt;
+            var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
+            var deltaLat = ( Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
+            var deltaAlt = Math.sin(pitch) * mesafeYatay;
+
+            lon += Cesium.Math.toDegrees(deltaLon);
+            lat += Cesium.Math.toDegrees(deltaLat);
+            alt = Math.max(alt + deltaAlt, 1050);
+            pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        }
+
+        /* Kamera — her iki modda aynı */
+        var kameraMesafeDerece = 55 / 111000;
         var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
         var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
-        var kamAlt = alt + 12 + (Math.sin(pitch) * 10);
-
+        var kamAlt = alt + 12 + Math.sin(pitch) * 10;
         viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
-            orientation : { 
-                heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8) + (pitch * 0.15), 6 * dt), 
-                roll: roll * -0.1 
-            }
+            destination: Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation: { heading:heading, pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8)+(pitch*0.15), 6*dt), roll: roll*-0.1 }
         });
 
         hudSayac++;
         if (hudSayac % 10 === 0) {
-            var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
+            var deg = ((Cesium.Math.toDegrees(heading) % 360)+360) % 360;
             var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
             document.getElementById('hud-alt').textContent    = Math.round(alt).toLocaleString() + ' m';
-            document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz * 3.6) + ' km/s';
+            document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz*3.6) + ' km/s';
             document.getElementById('hud-pos').textContent    = lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E';
             document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
             document.getElementById('hud-dirstr').textContent = yonStr;
         }
     }
-    
     requestAnimationFrame(guncelle);
 
+    /* ── NOKTA GİT (toolbar + yer kartları) ── */
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
-        lon = n.lon; lat = n.lat; alt = n.alt;
-        heading = 0; pitch = -0.02; roll = 0;
-        hedefHiz = 110; mevcutHiz = 100;
-        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-        
-        document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
+        /* Otopilot ile git */
+        autoBaslat(id);
+        /* Toolbar buton */
+        document.querySelectorAll('.sim-toolbar__btn').forEach(function(b){ b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
 
@@ -415,7 +511,7 @@
         document.body.style.overflow = tamEkranAcik ? 'hidden' : '';
         viewer.resize();
     };
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && tamEkranAcik) simTamEkran(); });
+    document.addEventListener('keydown', function(e) { if (e.key==='Escape' && tamEkranAcik) simTamEkran(); });
 
 })();
 </script>
