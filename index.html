@@ -14,22 +14,14 @@
     --primary: #3b82f6;
   }
   html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Iframe içi tarayıcı kaydırma çubuklarını kesin olarak kapatır */
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; /* Iframe içi kaydırma çubuklarını tamamen kapatır */
   }
   body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
   
   .sim-page { 
-    max-width: 1100px; 
-    padding: 10px 12px; 
-    margin: 0 auto; 
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    max-width: 1100px; padding: 10px 12px; margin: 0 auto; height: 100%;
+    display: flex; flex-direction: column; justify-content: flex-start;
   }
 
   .sim-band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
@@ -75,7 +67,7 @@
                   font-weight:600; cursor:pointer; display:none; }
   .sim-fullscreen .sim-fs-close { display:block; }
 
-  /* Mobil Kontrol Katmanı */
+  /* Mobil Kontroller */
   .sim-mobile-controls {
       position: absolute; bottom: 20px; left: 0; right: 0;
       display: none; justify-content: space-between; padding: 0 15px;
@@ -118,7 +110,7 @@
   <div class="sim-hud">
     <div class="sim-hud__card"><div class="sim-hud__label">Yükseklik</div><div class="sim-hud__val" id="hud-alt">-- m</div><div class="sim-hud__sub">Deniz seviyesinden</div></div>
     <div class="sim-hud__card"><div class="sim-hud__label">Hız</div><div class="sim-hud__val" id="hud-spd">-- km/s</div><div class="sim-hud__sub">Yatay hız</div></div>
-    <div class="sim-hud__card"><div class="sim-hud__label">Konum</div><div class="sim-hud__val" style="font-size:12px;" id="hud-pos">--</div><div class="sim-hud__sub">Enlem / Boylam</div></div>
+    <div class="sim-hud__card"><div class="sim-hud__label">Konum</div><div class="sim-hud__val" style="font-size:11px;" id="hud-pos">--</div><div class="sim-hud__sub">Enlem / Boylam</div></div>
     <div class="sim-hud__card"><div class="sim-hud__label">Yön</div><div class="sim-hud__val" id="hud-dir">--°</div><div class="sim-hud__sub" id="hud-dirstr">--</div></div>
   </div>
 
@@ -251,17 +243,37 @@
         heading += roll * (mevcutHiz / 120) * dt;
 
         var cosPitch = Math.cos(pitch), mesafeYatay = mevcutHiz * dt;
-        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
+        
+        // Güvenli koordinat değişimi (NaN / Sıfıra bölünme koruması)
+        var CosLatRad = Math.cos(Cesium.Math.toRadians(lat));
+        if (CosLatRad === 0 || isNaN(CosLatRad)) CosLatRad = 0.0001;
+
+        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * CosLatRad);
         var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
         
-        lon += Cesium.Math.toDegrees(deltaLon); lat += Cesium.Math.toDegrees(deltaLat); alt = Math.max(alt + Math.sin(pitch) * mesafeYatay, 100);
-        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        var yeniLon = lon + Cesium.Math.toDegrees(deltaLon);
+        var yeniLat = lat + Cesium.Math.toDegrees(deltaLat);
+        var yeniAlt = Math.max(alt + Math.sin(pitch) * mesafeYatay, 100);
+
+        // Hata kontrolü: Eğer değer geçerliyse pozisyonu güncelle, NaN ise sistemi çökertme
+        if (!isNaN(yeniLon) && !isNaN(yeniLat) && !isNaN(yeniAlt) && isFinite(yeniLon) && isFinite(yeniLat)) {
+            lon = yeniLon; lat = yeniLat; alt = yeniAlt;
+            pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        }
 
         var kameraMesafeDerece = 420 / 111000;
-        viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(lon - Math.sin(heading) * kameraMesafeDerece, lat - Math.cos(heading) * kameraMesafeDerece, alt + 120 + (Math.sin(pitch) * 50)),
-            orientation : { heading: heading, pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-11) + (pitch * 0.2), 5 * dt), roll: roll * -0.35 }
-        });
+        var hedefKamPitch = Cesium.Math.toRadians(-11) + (pitch * 0.2);
+        
+        // Matris patlamalarını engellemek için pitch değerini sınırla
+        if (hedefKamPitch > 1.5) hedefKamPitch = 1.5;
+        if (hedefKamPitch < -1.5) hedefKamPitch = -1.5;
+
+        if (!isNaN(lon) && !isNaN(lat)) {
+            viewer.camera.setView({
+                destination : Cesium.Cartesian3.fromDegrees(lon - Math.sin(heading) * kameraMesafeDerece, lat - Math.cos(heading) * kameraMesafeDerece, alt + 120 + (Math.sin(pitch) * 50)),
+                orientation : { heading: heading, pitch: lerp(viewer.camera.pitch, hedefKamPitch, 5 * dt), roll: roll * -0.35 }
+            });
+        }
 
         hudSayac++;
         if (hudSayac % 10 === 0) {
