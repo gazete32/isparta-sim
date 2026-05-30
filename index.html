@@ -157,7 +157,7 @@
       </div>
   </div>
   
-  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S/A/D/E/Q</b> tuşları ile uçun. Fareyle basılı tutup sürükleyerek uçağın etrafına bakabilirsiniz.</p>
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S/A/D/E/Q</b> tuşları ile uçun. Kamera otomatik olarak uçağın arkasına sabitlenmiştir.</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
   <div class="sim-controls">
@@ -166,11 +166,6 @@
       <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
       <div class="sim-ctrl-card__item"><span>Sola / Sağa Yatış (Dönüş)</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
       <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
-    </div>
-    <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">🎯 Kamera ve Fare</div>
-      <div class="sim-ctrl-card__item"><span>Kamerayı Döndür</span><span><span class="sim-ctrl-card__key">Sol Tık + Sürükle</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Yakınlaşma / Uzaklaşma</span><span><span class="sim-ctrl-card__key">Mouse Tekerleği</span></span></div>
     </div>
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">📍 Noktalar</div>
@@ -232,9 +227,12 @@
     viewer.scene.globe.maximumScreenSpaceError = 8;
     viewer.resolutionScale                     = 0.85; 
 
-    // Kamera kontrol kısıtlamalarını esnetiyoruz (Yakınlaşma sınırı)
-    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
-    viewer.scene.screenSpaceCameraController.maximumZoomDistance = 5000;
+    // Fare sürüklemelerini tamamen bloke ediyoruz ki kamerayı yerinden oynatıp uçağı kaybetmesinler
+    viewer.scene.screenSpaceCameraController.enableRotate = false;
+    viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    viewer.scene.screenSpaceCameraController.enableZoom = false;
+    viewer.scene.screenSpaceCameraController.enableTilt = false;
+    viewer.scene.screenSpaceCameraController.enableLook = false;
 
     var simEl = document.getElementById('sim-container');
     simEl.addEventListener('click', function() { this.focus(); });
@@ -247,31 +245,23 @@
     var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
     var oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
+    // Yeşil yön oku/piramidi
     var ucakEntity = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
         orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
         cylinder : {
-            length : 18.0,
+            length : 20.0,
             topRadius : 0.0,
-            bottomRadius : 5.0,
+            bottomRadius : 6.0,
             material : Cesium.Color.fromCssColorString('#22c55e')
         },
         label : { 
             text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(0, -30),
-            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 4000.0)
+            pixelOffset: new Cesium.Cartesian2(0, -35)
         },
     });
-
-    // 🌟 KESİN ÇÖZÜM: Kamerayı yerleşik olarak uçağa kilitliyoruz. 
-    // Böylece Cesium fare sürüklemelerini, yakınlaşmaları otomatik ve hatasız yönetir.
-    viewer.trackedEntity = ucakEntity;
-	viewer.trackedEntity = ucakEntity;
-// Uçağı arkadan temiz bir açıyla görmek için kamera ofseti ekliyoruz:
-viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); 
-ucakEntity.viewFrom = new Cesium.Cartesian3(-150.0, 0.0, 30.0);
 
     var mevcutHiz = 90;       
     var hedefHiz = 110;
@@ -346,10 +336,28 @@ ucakEntity.viewFrom = new Cesium.Cartesian3(-150.0, 0.0, 30.0);
         alt = Math.max(alt + deltaAlt, 1050); 
 
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        
+        // Piramit varlığının uçuş ekseninde pürüzsüz dönmesi için oryantasyon güncellemesi
         hpr.heading = heading;
         hpr.pitch = pitch + Cesium.Math.toRadians(90); 
         hpr.roll = roll;
         oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
+
+        // 🌟 MATEMATİKSEL KAMERA KİLİTLEME (ÇİVİ GİBİ TAKİP)
+        // Kamerayı uçağın tam 180 metre arkasına ve 40 metre yukarısına çiviliyoruz
+        var kameraMesafeDerece = 180 / 111000; 
+        var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
+        var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
+        var kamAlt = alt + 40 + (Math.sin(pitch) * 30);
+
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-10) + (pitch * 0.15), 6 * dt), 
+                roll: roll * -0.2 
+            }
+        });
 
         hudSayac++;
         if (hudSayac % 10 === 0) {
@@ -373,7 +381,6 @@ ucakEntity.viewFrom = new Cesium.Cartesian3(-150.0, 0.0, 30.0);
         
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         
-        // Kamera kilitli olduğu için direkt uçağı yeni noktaya ışınlıyoruz, kamera otomatik takip ediyor
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
