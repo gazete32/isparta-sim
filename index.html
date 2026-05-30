@@ -1,3 +1,8 @@
+Tabii ki, fizik tabanlı ve akıcı yeni uçuş mekaniklerinin uygulandığı, tüm sayfa yapısını, CSS stillerini ve optimize edilmiş JavaScript döngüsünü içeren **`index.html`** kodunun tamamı aşağıdadır.
+
+Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
+
+```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -130,15 +135,16 @@
   <div class="sim-controls">
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">✈ Uçuş</div>
-      <div class="sim-ctrl-card__item"><span>İleri / Geri</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Sola / Sağa</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Yüksel / Alçal</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Gaz Ver (Hızlan)</span><span><span class="sim-ctrl-card__key">W</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Fren (Yavaşla)</span><span><span class="sim-ctrl-card__key">S</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Sola / Sağa Dönüş</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
     </div>
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">🎯 Kamera</div>
       <div class="sim-ctrl-card__item"><span>Bakış açısı</span><span><span class="sim-ctrl-card__key">Fare sürükle</span></span></div>
       <div class="sim-ctrl-card__item"><span>Zoom</span><span><span class="sim-ctrl-card__key">Kaydırma</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Hızlan / Yavaşla</span><span><span class="sim-ctrl-card__key">+</span> / <span class="sim-ctrl-card__key">-</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Hız Kademesi (+/-)</span><span><span class="sim-ctrl-card__key">+</span> / <span class="sim-ctrl-card__key">-</span></span></div>
     </div>
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">📍 Noktalar</div>
@@ -221,7 +227,15 @@
         orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
     });
 
-    var hiz = 100, heading = 0, pitch = -0.3;
+    // ── AKICI FİZİK DEĞİŞKENLERİ ──
+    var mevcutHiz = 80;       // m/s cinsinden anlık hız
+    var hedefHiz = 100;       // Gitmek istediğimiz baz hız
+    var minHiz = 20;
+    var maxHiz = 400;
+    
+    var heading = 0, pitch = -0.1;
+    var turnSpeed = 0, pitchSpeed = 0; // Dönüş ve eğim ivmeleri
+    
     var tuslar = {};
 
     window.addEventListener('keydown', function(e) {
@@ -236,63 +250,88 @@
     var oncekiZaman = performance.now();
     var hudSayac = 0;
 
-    /* Tarayıcıyı kilitlemeyen ana render döngüsü */
+    // Lineer interpolasyon (Yumuşak geçiş / Atalet fonksiyonu)
+    function lerp(start, end, amt) {
+        return (1 - amt) * start + amt * end;
+    }
+
+    /* ── Geliştirilmiş Uçuş Döngüsü ── */
     function guncelle(simdi) {
         requestAnimationFrame(guncelle);
 
         var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
         oncekiZaman = simdi;
 
-        // Sürekli ileri gitme mantığı (W ve S tuşları hıza çarpan ekler)
-        if (tuslar['+'] || tuslar['=']) { hiz = Math.min(hiz + 5, 500); tuslar['+'] = tuslar['='] = false; }
-        if (tuslar['-'])                { hiz = Math.max(hiz - 5, 10); tuslar['-'] = false; }
-        if (tuslar['a']) heading -= 1.0 * dt;
-        if (tuslar['d']) heading += 1.0 * dt;
-        if (tuslar['e']) pitch = Math.min(pitch + 0.4 * dt, 0.8);
-        if (tuslar['q']) pitch = Math.max(pitch - 0.4 * dt, -0.8);
+        // 1. GAZ KONTROLÜ (W: Hızlanma, S: Yavaşlama)
+        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 60 * dt, maxHiz);
+        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 60 * dt, minHiz);
+        if (tuslar['+'] || tuslar['=']) { hedefHiz = Math.min(hedefHiz + 30, maxHiz); tuslar['+'] = tuslar['='] = false; }
+        if (tuslar['-'])                { hedefHiz = Math.max(hedefHiz - 30, minHiz); tuslar['-'] = false; }
 
+        // Atalet etkisi: Mevcut hızı hedef hıza doğru pürüzsüzce yaklaştırır
+        mevcutHiz = lerp(mevcutHiz, hedefHiz, 4 * dt);
+
+        // 2. YÖN VE BURUN AÇISI KONTROLÜ (A/D ve E/Q)
+        if (tuslar['a']) turnSpeed = lerp(turnSpeed, -0.7, 5 * dt);
+        else if (tuslar['d']) turnSpeed = lerp(turnSpeed, 0.7, 5 * dt);
+        else turnSpeed = lerp(turnSpeed, 0, 4 * dt); // Tuş bırakılınca süzülerek durur
+
+        if (tuslar['e']) pitchSpeed = lerp(pitchSpeed, 0.3, 5 * dt);
+        else if (tuslar['q']) pitchSpeed = lerp(pitchSpeed, -0.3, 5 * dt);
+        else pitchSpeed = lerp(pitchSpeed, 0, 4 * dt);
+
+        heading += turnSpeed * dt;
+        pitch = Math.max(Math.min(pitch + pitchSpeed * dt, 0.7), -0.7);
+
+        // 3. YENİ POZİSYON HESABI (3 Boyutlu Vektör)
         var c = Cesium.Cartographic.fromCartesian(pozisyon);
-        var ucusYonu = 1; // Varsayılan olarak sürekli ileri akar
-        if (tuslar['w']) ucusYonu = 1.8; // Hızlanma etkisi
-        if (tuslar['s']) ucusYonu = 0.3; // Yavaşlama etkisi
+        
+        var cosPitch = Math.cos(pitch);
+        var deltaLon = (-Math.sin(heading) * cosPitch) * (mevcutHiz * dt) / (6371000 * Math.cos(c.latitude));
+        var deltaLat = (Math.cos(heading) * cosPitch) * (mevcutHiz * dt) / 6371000;
+        var deltaAlt = Math.sin(pitch) * (mevcutHiz * dt);
 
-        // Koordinat öteleme hesabı
         pozisyon = Cesium.Cartesian3.fromRadians(
-            c.longitude + (-Math.sin(heading) * Math.cos(pitch)) * (hiz * ucusYonu * dt) / (6371000 * Math.cos(c.latitude)),
-            c.latitude  + ( Math.cos(heading) * Math.cos(pitch)) * (hiz * ucusYonu * dt) / 6371000,
-            Math.max(c.height + Math.sin(pitch) * (hiz * ucusYonu * dt), 100)
+            c.longitude + deltaLon,
+            c.latitude + deltaLat,
+            Math.max(c.height + deltaAlt, 100) // Yere çakılma koruması
         );
 
-        // Kamerayı uçağın arkasına sabitleme
+        // 4. AKICI KAMERA TAKİBİ VE SARKMA EFEKTİ
+        var idealKameraMesafe = 600 / 111000; 
+        var hedefKameraLon = Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * idealKameraMesafe;
+        var hedefKameraLat = Cesium.Math.toDegrees(c.latitude) - Math.cos(heading) * idealKameraMesafe;
+        var hedefKameraAlt = c.height + 220 + (Math.sin(pitch) * 100); 
+
         viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(
-                Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * (600 / 111000),
-                Cesium.Math.toDegrees(c.latitude)  - Math.cos(heading) * (600 / 111000),
-                c.height + 250
-            ),
-            orientation : { heading: heading, pitch: Cesium.Math.toRadians(-15), roll: 0 }
+            destination : Cesium.Cartesian3.fromDegrees(hedefKameraLon, hedefKameraLat, hedefKameraAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-14) + (pitch * 0.2), 6 * dt), 
+                roll: turnSpeed * -0.2 // Dönüşlerde uçağın/kameranın kanat yatış açısı (Bank açısı)
+            }
         });
 
-        /* HUD Arayüz Güncellemesi (Performans için 10 frame'de bir) */
+        /* HUD Arayüz Güncellemesi (Her frame yerine 10 frame'de bir) */
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
             var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
             document.getElementById('hud-alt').textContent    = Math.round(c.height).toLocaleString() + ' m';
-            document.getElementById('hud-spd').textContent    = Math.round(hiz * ucusYonu * 3.6) + ' km/s';
+            document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz * 3.6) + ' km/s';
             document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(c.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(c.longitude).toFixed(4) + '°E';
             document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
             document.getElementById('hud-dirstr').textContent = yonStr;
         }
     }
     
-    // Döngüyü ilk kez tetikle
     requestAnimationFrame(guncelle);
 
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
         pozisyon = Cesium.Cartesian3.fromDegrees(n.lon, n.lat, n.alt);
-        heading = 0; pitch = -0.1; // Değerleri sıfırla ki takılma olmasın
+        heading = 0; pitch = -0.1;
+        hedefHiz = 100; mevcutHiz = 80; 
         viewer.camera.flyTo({
             destination : Cesium.Cartesian3.fromDegrees(n.lon, n.lat - 0.02, n.alt + 1000),
             orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
@@ -315,3 +354,5 @@
 </script>
 </body>
 </html>
+
+```
