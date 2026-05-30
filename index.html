@@ -15,7 +15,7 @@
   }
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
-    overflow: hidden; /* Iframe içi kaydırma çubuklarını tamamen kapatır */
+    overflow: hidden; /* Iframe içi kaydırma çubuklarını kapatır */
   }
   body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
   
@@ -174,10 +174,10 @@
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
     var NOKTALAR = {
-        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1200 },
-        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
-        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1400 },
-        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1300 },
+        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1100 },
+        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2700 },
+        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1300 },
+        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1200 },
     };
 
     var viewer = new Cesium.Viewer('sim-container', {
@@ -193,18 +193,21 @@
 
     document.getElementById('sim-container').addEventListener('click', function() { this.focus(); });
 
+    // Başlangıç konumları
     var lon = NOKTALAR.havaalani.lon, lat = NOKTALAR.havaalani.lat, alt = NOKTALAR.havaalani.alt;
     var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
-    viewer.entities.add({
+    // Yeşili simüle eden uçak nesnesi
+    var ucakEntity = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
-        point    : { pixelSize: 12, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 }
+        point    : { pixelSize: 14, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+        label    : { text: '✈ G32', font: 'bold 12px Arial', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -20) }
     });
 
-    viewer.camera.setView({
-        destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.006, alt + 120),
-        orientation : { heading: 0, pitch: Cesium.Math.toRadians(-12), roll: 0 }
-    });
+    // ── KAMERAYI ENTIITY'E BAĞLAMA (UÇUŞ KİLİDİ ÇÖZÜMÜ) ──
+    // Kamerayı uçağın arkasına sabitliyoruz, böylece seView çakışması yaşanmıyor
+    viewer.trackedEntity = ucakEntity;
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); // Global transform sıfırlama
 
     var mevcutHiz = 90, hedefHiz = 110, minHiz = 30, maxHiz = 320;
     var heading = 0, pitch = -0.02, roll = 0, tuslar = {};
@@ -224,32 +227,35 @@
     var oncekiZaman = null, hudSayac = 0;
     function lerp(start, end, amt) { return (1 - amt) * start + amt * end; }
 
+    /* ── Kesintisiz Çalışan Saf Öteleme Döngüsü ── */
     viewer.scene.preUpdate.addEventListener(function(scene, zaman) {
         if (!oncekiZaman) { oncekiZaman = zaman; return; }
         var dt = Math.min((zaman - oncekiZaman) / 1000, 0.1); oncekiZaman = zaman;
 
-        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 40 * dt, maxHiz);
-        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 40 * dt, minHiz);
+        // Gaz Ver / Fren Dinamiği
+        if (tuslar['w']) { hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz); }
+        if (tuslar['s']) { hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz); }
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
-        if (tuslar['a']) roll = lerp(roll, -0.5, 4 * dt);
-        else if (tuslar['d']) roll = lerp(roll, 0.5, 4 * dt);
+        // Yatış ve Dönüş Dinamiği
+        if (tuslar['a']) roll = lerp(roll, -0.6, 4 * dt);
+        else if (tuslar['d']) roll = lerp(roll, 0.6, 4 * dt);
         else roll = lerp(roll, 0, 3 * dt);
 
-        if (tuslar['e']) pitch = lerp(pitch, 0.28, 3 * dt);
-        else if (tuslar['q']) pitch = lerp(pitch, -0.28, 3 * dt);
+        // Burun İndir / Kaldır
+        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
         else pitch = lerp(pitch, 0, 2 * dt);
 
-        heading += roll * (mevcutHiz / 120) * dt;
-
-        // ── RADYAN / DERECE KORUMA VE EMNİYET KİLİDİ ──
-        // Heading değerini sürekli 0 ile 2*PI (radyan) arasında tutarak hafıza taşmasını ve NaN üretimini engelliyoruz
+        heading += roll * (mevcutHiz / 100) * dt;
         heading = (heading % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
 
-        var cosPitch = Math.cos(pitch), mesafeYatay = mevcutHiz * dt;
+        // Fiziksel İlerleme Katsayıları
+        var cosPitch = Math.cos(pitch);
+        var mesafeYatay = mevcutHiz * dt;
         
         var CosLatRad = Math.cos(Cesium.Math.toRadians(lat));
-        if (CosLatRad === 0 || isNaN(CosLatRad) || !isFinite(CosLatRad)) CosLatRad = 0.0001;
+        if (CosLatRad <= 0 || isNaN(CosLatRad)) CosLatRad = 0.0001;
 
         var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * CosLatRad);
         var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
@@ -258,36 +264,28 @@
         var yeniLat = lat + Cesium.Math.toDegrees(deltaLat);
         var yeniAlt = Math.max(alt + Math.sin(pitch) * mesafeYatay, 100);
 
-        // Değerler tamamen sayısal olarak doğrulanmadan ana koordinat dizilerine gönderilmiyor
         if (!isNaN(yeniLon) && !isNaN(yeniLat) && !isNaN(yeniAlt) && isFinite(yeniLon) && isFinite(yeniLat)) {
             lon = yeniLon; lat = yeniLat; alt = yeniAlt;
             pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         }
 
-        var kameraMesafeDerece = 420 / 111000;
-        var hedefKamPitch = Cesium.Math.toRadians(-11) + (pitch * 0.2);
-        
-        // Kamera matrisinin kırılmasını önleyen sınırlama
-        if (hedefKamPitch > 1.4) hedefKamPitch = 1.4;
-        if (hedefKamPitch < -1.4) hedefKamPitch = -1.4;
+        // Kameranın uçağın arkasından bakış açısı (Tracked offsets)
+        var mesafeDerece = 400 / 111000;
+        var kamLon = lon - Math.sin(heading) * mesafeDerece;
+        var kamLat = lat - Math.cos(heading) * mesafeDerece;
+        var kamAlt = alt + 90 + (Math.sin(pitch) * 40);
 
-        if (!isNaN(lon) && !isNaN(lat) && isFinite(lon) && isFinite(lat)) {
-            var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
-            var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
-            var kamAlt = alt + 120 + (Math.sin(pitch) * 50);
-
-            if (!isNaN(kamLon) && !isNaN(kamLat) && !isNaN(kamAlt)) {
-                viewer.camera.setView({
-                    destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
-                    orientation : { 
-                        heading: heading, // Artık her zaman güvenli radyan aralığında
-                        pitch: lerp(viewer.camera.pitch, hedefKamPitch, 5 * dt), 
-                        roll: roll * -0.35 
-                    }
-                });
+        // TrackedEntity etkinken setView sadece kamerayı o nesnenin bağıl konumuna öteler (Kilitlemez)
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.15), 5 * dt), 
+                roll: roll * -0.25 
             }
-        }
+        });
 
+        // HUD Bilgi Paneli
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
@@ -300,11 +298,19 @@
         }
     });
 
+    // Sabit Noktalara Uçuş Fonksiyonu
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
         lon = n.lon; lat = n.lat; alt = n.alt; heading = 0; pitch = -0.02; roll = 0; hedefHiz = 110; mevcutHiz = 90;
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-        viewer.camera.flyTo({ destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.008, alt + 300), orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 }, duration : 2 });
+        
+        // Yeniden takibe alarak yumuşak geçiş sağla
+        viewer.trackedEntity = ucakEntity;
+        viewer.camera.flyTo({ 
+            destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.008, alt + 250), 
+            orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 }, 
+            duration : 1.5 
+        });
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
