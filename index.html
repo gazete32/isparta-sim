@@ -165,8 +165,6 @@
         return;
     }
 
-(function () {
-
     /* ── TOKEN — buraya cesium.ion tokeninizi yazın ── */
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
@@ -209,7 +207,7 @@
         NOKTALAR.havaalani.lon, NOKTALAR.havaalani.lat, NOKTALAR.havaalani.alt
     );
 
-    viewer.entities.add({
+    var ucakEntity = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
         point    : { pixelSize: 14, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
         label    : { text: '✈ Isparta', font: 'bold 13px Arial', fillColor: Cesium.Color.WHITE,
@@ -225,74 +223,76 @@
 
     var hiz = 100, heading = 0, pitch = -0.3;
     var tuslar = {};
-    [document, simEl].forEach(function(el) {
-        el.addEventListener('keydown', function(e) {
-            tuslar[e.key.toLowerCase()] = true;
-            if (['w','a','s','d','q','e','+','-','='].indexOf(e.key.toLowerCase()) > -1) e.preventDefault();
-        });
-        el.addEventListener('keyup', function(e) { tuslar[e.key.toLowerCase()] = false; });
+
+    window.addEventListener('keydown', function(e) {
+        var key = e.key.toLowerCase();
+        tuslar[key] = true;
+        if (['w','a','s','d','q','e','+','-','='].indexOf(key) > -1) e.preventDefault();
+    });
+    window.addEventListener('keyup', function(e) { 
+        tuslar[e.key.toLowerCase()] = false; 
     });
 
-    /* ── Güncelleme döngüsü — throttled, 20fps yeterli ── */
-    var oncekiZaman = Date.now();
+    var oncekiZaman = performance.now();
     var hudSayac = 0;
 
-    function guncelle() {
-        var simdi = Date.now();
+    /* Tarayıcıyı kilitlemeyen ana render döngüsü */
+    function guncelle(simdi) {
+        requestAnimationFrame(guncelle);
+
         var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
         oncekiZaman = simdi;
 
-        var hareket = tuslar['w'] || tuslar['s'] || tuslar['a'] || tuslar['d'] ||
-                      tuslar['e'] || tuslar['q'] || tuslar['+'] || tuslar['='] || tuslar['-'];
+        // Sürekli ileri gitme mantığı (W ve S tuşları hıza çarpan ekler)
+        if (tuslar['+'] || tuslar['=']) { hiz = Math.min(hiz + 5, 500); tuslar['+'] = tuslar['='] = false; }
+        if (tuslar['-'])                { hiz = Math.max(hiz - 5, 10); tuslar['-'] = false; }
+        if (tuslar['a']) heading -= 1.0 * dt;
+        if (tuslar['d']) heading += 1.0 * dt;
+        if (tuslar['e']) pitch = Math.min(pitch + 0.4 * dt, 0.8);
+        if (tuslar['q']) pitch = Math.max(pitch - 0.4 * dt, -0.8);
 
-        if (hareket) {
-            if (tuslar['+'] || tuslar['=']) hiz = Math.min(hiz + 20, 2000);
-            if (tuslar['-'])                hiz = Math.max(hiz - 20, 20);
-            if (tuslar['a']) heading -= 0.8 * dt;
-            if (tuslar['d']) heading += 0.8 * dt;
-            if (tuslar['e']) pitch = Math.min(pitch + 0.5 * dt,  1.0);
-            if (tuslar['q']) pitch = Math.max(pitch - 0.5 * dt, -1.0);
+        var c = Cesium.Cartographic.fromCartesian(pozisyon);
+        var ucusYonu = 1; // Varsayılan olarak sürekli ileri akar
+        if (tuslar['w']) ucusYonu = 1.8; // Hızlanma etkisi
+        if (tuslar['s']) ucusYonu = 0.3; // Yavaşlama etkisi
 
-            if (tuslar['w'] || tuslar['s']) {
-                var c  = Cesium.Cartographic.fromCartesian(pozisyon);
-                var yc = tuslar['w'] ? 1 : -1;
-                pozisyon = Cesium.Cartesian3.fromRadians(
-                    c.longitude + (-Math.sin(heading) * Math.cos(pitch)) * (hiz * dt) / (6371000 * Math.cos(c.latitude)),
-                    c.latitude  + ( Math.cos(heading) * Math.cos(pitch)) * (hiz * dt) / 6371000,
-                    Math.max(c.height + Math.sin(pitch) * (hiz * dt) * yc, 100)
-                );
-            }
+        // Koordinat öteleme hesabı
+        pozisyon = Cesium.Cartesian3.fromRadians(
+            c.longitude + (-Math.sin(heading) * Math.cos(pitch)) * (hiz * ucusYonu * dt) / (6371000 * Math.cos(c.latitude)),
+            c.latitude  + ( Math.cos(heading) * Math.cos(pitch)) * (hiz * ucusYonu * dt) / 6371000,
+            Math.max(c.height + Math.sin(pitch) * (hiz * ucusYonu * dt), 100)
+        );
 
-            var k = Cesium.Cartographic.fromCartesian(pozisyon);
-            viewer.camera.setView({
-                destination : Cesium.Cartesian3.fromDegrees(
-                    Cesium.Math.toDegrees(k.longitude) - Math.sin(heading) * (500 / 111000),
-                    Cesium.Math.toDegrees(k.latitude)  - Math.cos(heading) * (500 / 111000),
-                    k.height + 200
-                ),
-                orientation : { heading: heading, pitch: Cesium.Math.toRadians(-15), roll: 0 },
-            });
+        // Kamerayı uçağın arkasına sabitleme
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(
+                Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * (600 / 111000),
+                Cesium.Math.toDegrees(c.latitude)  - Math.cos(heading) * (600 / 111000),
+                c.height + 250
+            ),
+            orientation : { heading: heading, pitch: Cesium.Math.toRadians(-15), roll: 0 }
+        });
 
-            /* HUD her 5 frame'de bir güncelle */
-            hudSayac++;
-            if (hudSayac % 5 === 0) {
-                var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
-                var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
-                document.getElementById('hud-alt').textContent    = Math.round(k.height).toLocaleString() + ' m';
-                document.getElementById('hud-spd').textContent    = Math.round(hiz * 3.6) + ' km/s';
-                document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(k.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(k.longitude).toFixed(4) + '°E';
-                document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
-                document.getElementById('hud-dirstr').textContent = yonStr;
-            }
+        /* HUD Arayüz Güncellemesi (Performans için 10 frame'de bir) */
+        hudSayac++;
+        if (hudSayac % 10 === 0) {
+            var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
+            var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
+            document.getElementById('hud-alt').textContent    = Math.round(c.height).toLocaleString() + ' m';
+            document.getElementById('hud-spd').textContent    = Math.round(hiz * ucusYonu * 3.6) + ' km/s';
+            document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(c.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(c.longitude).toFixed(4) + '°E';
+            document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
+            document.getElementById('hud-dirstr').textContent = yonStr;
         }
-
-        setTimeout(guncelle, 50); /* 20fps */
     }
-    guncelle();
+    
+    // Döngüyü ilk kez tetikle
+    requestAnimationFrame(guncelle);
 
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
         pozisyon = Cesium.Cartesian3.fromDegrees(n.lon, n.lat, n.alt);
+        heading = 0; pitch = -0.1; // Değerleri sıfırla ki takılma olmasın
         viewer.camera.flyTo({
             destination : Cesium.Cartesian3.fromDegrees(n.lon, n.lat - 0.02, n.alt + 1000),
             orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
@@ -311,8 +311,7 @@
     };
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && tamEkranAcik) simTamEkran(); });
 
-}());
-}());
+})();
 </script>
 </body>
 </html>
