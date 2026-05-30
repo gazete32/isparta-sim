@@ -13,8 +13,8 @@
     --border: #374151; --text: #f9fafb; --text3: #9ca3af;
     --primary: #3b82f6;
   }
-  html, body { overflow-x: hidden; }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; }
+  html, body { overflow-x: hidden; overflow-y: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
   .sim-page { max-width: 1100px; padding: 1rem 16px; margin: 0 auto; }
 
   .sim-band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
@@ -513,6 +513,14 @@
         viewer.resize();
     };
     document.addEventListener('keydown', function(e) { if (e.key==='Escape' && tamEkranAcik) simTamEkran(); });
+
+    /* iframe yüksekliğini parent'a bildir */
+    function boyutBildir() {
+        var h = document.body.scrollHeight;
+        window.parent.postMessage({ type: 'simHeight', height: h }, '*');
+    }
+    setTimeout(boyutBildir, 2000);
+    window.addEventListener('resize', boyutBildir);
 
 })();
 </script>
