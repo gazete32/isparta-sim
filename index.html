@@ -157,7 +157,7 @@
       </div>
   </div>
   
-  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla, <b>A/D</b> Sağa/Sola Dön, <b>E/Q</b> Yüksel/Alçal.</p>
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla, <b>A/D</b> Sola/Sağa Dön, <b>E/Q</b> Burun Kaldır/İndir.</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
   <div class="sim-controls">
@@ -241,19 +241,13 @@
     var alt = NOKTALAR.havaalani.alt;
     
     var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-    
-    var heading = 0;          
-    var pitch = -0.02;        
-    var roll = 0;             
+    var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
+    var oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
-    // Ana konteyner oryantasyonu (Uçağın gerçek gidiş yönü)
-    var ucakOryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, new Cesium.HeadingPitchRoll(0, 0, 0));
-
+    // 3D Geometrik Uçak Yapısı
     var ucakKonteyner = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
-        orientation : new Cesium.CallbackProperty(function() { 
-            return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, new Cesium.HeadingPitchRoll(heading, pitch, roll));
-        }, false),
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
         label : { 
             text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
@@ -262,46 +256,44 @@
         }
     });
 
-    // 🌟 GÜNCELLEME: Silindiri 90 derece yatırarak ufuk çizgisine paralel hale getirdik (Mavi Gövde)
+    // Gövde
     viewer.entities.add({
         parent : ucakKonteyner,
-        cylinder : { 
-            length : 24.0, 
-            topRadius : 0.1, // Burun kısmı ince
-            bottomRadius : 1.3, // Arka kısım geniş jet motoru çıkışı
-            material : Cesium.Color.fromCssColorString('#3b82f6') 
-        },
-        // Silindiri öne doğru yatıran kritik matris dönüşümü:
-        orientation : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(90))
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
+        cylinder : { length : 24.0, topRadius : 0.8, bottomRadius : 1.5, material : Cesium.Color.fromCssColorString('#3b82f6') }
     });
 
-    // 🌟 GÜNCELLEME: Büyük Kanatlar yere paralel ve gövdeye tam ortalı (Kırmızı Kanat)
+    // Kanatlar
     viewer.entities.add({
         parent : ucakKonteyner,
-        box : { 
-            dimensions : new Cesium.Cartesian3(3.5, 26.0, 0.4), 
-            material : Cesium.Color.fromCssColorString('#ef4444') 
-        }
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { 
+            var kanatHpr = new Cesium.HeadingPitchRoll(heading, pitch, roll + Cesium.Math.toRadians(90));
+            return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, kanatHpr);
+        }, false),
+        box : { dimensions : new Cesium.Cartesian3(1.2, 26.0, 4.0), material : Cesium.Color.fromCssColorString('#ef4444') }
     });
 
-    // 🌟 GÜNCELLEME: Kuyruk kanadı dikey ve gövdenin tam arkasında duracak şekilde hizalandı (Turuncu Kuyruk)
+    // Kuyruk
     viewer.entities.add({
         parent : ucakKonteyner,
-        box : { 
-            dimensions : new Cesium.Cartesian3(4.0, 0.4, 4.5), 
-            material : Cesium.Color.fromCssColorString('#f59e0b') 
-        },
-        // Kuyruğu uçağın arkasına ve yukarısına kaydırıyoruz
-        position : new Cesium.CallbackProperty(function() {
-            // Local eksende yerleşim yapıyoruz
-            return Cesium.Cartesian3.fromElements(-10.0, 0.0, 2.0);
-        }, false)
+        position : new Cesium.CallbackProperty(function() { 
+            var kuyrukMesafe = -10 / 111000;
+            return Cesium.Cartesian3.fromDegrees(lon - Math.sin(heading) * kuyrukMesafe, lat - Math.cos(heading) * kuyrukMesafe, alt + 2);
+        }, false),
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
+        box : { dimensions : new Cesium.Cartesian3(4.0, 0.4, 5.0), material : Cesium.Color.fromCssColorString('#f59e0b') }
     });
 
     var mevcutHiz = 90;       
     var hedefHiz = 110;
     var minHiz = 30;
     var maxHiz = 250;
+    
+    var heading = 0;          
+    var pitch = -0.02;        
+    var roll = 0;             
     
     var tuslar = {};
 
@@ -345,15 +337,16 @@
         if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 40 * dt, minHiz);
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
-        // Kararlı ve net yön dönüşü
+        // 🌟 GÜNCELLEME: Yön döndürme fiziğini sabitledik.
+        // A ve D tuşları artık doğrudan uçağın rotasını (Heading) kalıcı olarak değiştirir.
         if (tuslar['a']) {
-            heading -= 1.3 * dt;  
+            heading -= 1.2 * dt;  // Sola kararlı dönüş
             roll = lerp(roll, -0.3, 4 * dt);
         } else if (tuslar['d']) {
-            heading += 1.3 * dt;  
+            heading += 1.2 * dt;  // Sağa kararlı dönüş
             roll = lerp(roll, 0.3, 4 * dt);
         } else {
-            roll = lerp(roll, 0, 4 * dt); 
+            roll = lerp(roll, 0, 4 * dt); // Tuş bırakılınca uçak pürüzsüzce düzleşir
         }
 
         if (tuslar['e']) pitch = lerp(pitch, 0.25, 3 * dt);
@@ -372,19 +365,23 @@
         alt = Math.max(alt + deltaAlt, 1050); 
 
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        
+        hpr.heading = heading;
+        hpr.pitch = pitch + Cesium.Math.toRadians(90); 
+        hpr.roll = roll;
+        oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
-        // Kameranın uçağı arkadan pürüzsüz takibi
-        var kameraMesafeDerece = 180 / 111000; 
+        var kameraMesafeDerece = 190 / 111000; 
         var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
         var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
-        var kamAlt = alt + 35 + (Math.sin(pitch) * 25);
+        var kamAlt = alt + 45 + (Math.sin(pitch) * 30);
 
         viewer.camera.setView({
             destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
             orientation : { 
                 heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-10) + (pitch * 0.15), 6 * dt), 
-                roll: roll * -0.1 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.15), 6 * dt), 
+                roll: roll * -0.2 
             }
         });
 
@@ -407,6 +404,7 @@
         lon = n.lon; lat = n.lat; alt = n.alt;
         heading = 0; pitch = -0.02; roll = 0;
         hedefHiz = 110; mevcutHiz = 90;
+        
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
