@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Isparta Uçuş Simülatörü — 3D Sanal Gezi</title>
-<meta name="description" content="Isparta üzerinde 3D sanal gezi. Davraz, Eğirdir Gölü ve Isparta ovasını havadan keşfedin.">
+<title>Isparta Uçuş Simülatörü — 3D Sanal Uçuş</title>
+<meta name="description" content="Isparta üzerinde 3D sanal uçuş simülatörü. Davraz, Eğirdir Gölü ve Isparta ovasını havadan keşfedin.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Widgets/widgets.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,53 +28,70 @@
                      animation:sim-pulse 1.5s ease-in-out infinite; }
   @keyframes sim-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
+  .sim-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:.8rem; }
+  @media(max-width:600px){ .sim-hud { grid-template-columns:repeat(2,1fr); } }
+  .sim-hud__card  { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+  .sim-hud__label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .sim-hud__val   { font-size:20px; font-weight:700; color:var(--text); font-family:monospace; }
+  .sim-hud__sub   { font-size:11px; color:var(--text3); margin-top:2px; }
+
   .sim-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
   .sim-toolbar__btn { display:inline-flex; align-items:center; gap:5px;
-                      font-size:12px; font-weight:600; padding:8px 16px;
+                      font-size:12px; font-weight:600; padding:6px 14px;
                       border-radius:6px; border:1px solid var(--border);
                       background:var(--bg2); color:var(--text);
                       cursor:pointer; transition:background .15s; }
   .sim-toolbar__btn:hover  { background:var(--bg3); }
-  .sim-toolbar__btn--aktif { background:#1e3a5f; border-color:var(--primary); color:#fff; }
+  .sim-toolbar__btn--aktif { background:#1a2535; border-color:#3b82f6; color:#fff; }
   .sim-toolbar__sep        { flex:1; }
 
-  #sim-container { width:100%; height:580px; border-radius:8px; overflow:hidden;
-                   border:1px solid var(--border); background:#0d1b2a; position:relative; }
-  @media(max-width:600px){ #sim-container { height:400px; } }
+  .sim-container-wrapper { position: relative; width: 100%; }
 
-  .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:9999; height:100vh !important; border-radius:0; border:none; }
+  #sim-container { width:100%; height:560px; border-radius:8px; overflow:hidden;
+                   border:1px solid var(--border); position:relative;
+                   background:#0d1b2a; outline:none; cursor:crosshair; }
+  @media(max-width:600px){ #sim-container { height:380px; } }
+
+  .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:9999; height:100vh; border-radius:0; border:none; }
   .sim-fs-close { position:fixed; top:14px; right:14px; z-index:10000;
-                  background:rgba(0,0,0,.75); color:#fff; border:none;
+                  background:rgba(0,0,0,.7); color:#fff; border:none;
                   border-radius:6px; padding:8px 16px; font-size:13px;
                   font-weight:600; cursor:pointer; display:none; }
   .sim-fullscreen .sim-fs-close { display:block; }
 
-  /* Otomatik tur göstergesi */
-  .sim-tur-bar { display:flex; align-items:center; gap:10px; margin-bottom:.6rem;
-                 background:var(--bg2); border:1px solid var(--border);
-                 border-radius:8px; padding:.6rem 1rem; font-size:12px; }
-  .sim-tur-bar__label { color:var(--text3); }
-  .sim-tur-bar__nokta { font-weight:700; color:var(--text); }
-  .sim-tur-bar__progress { flex:1; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
-  .sim-tur-bar__fill { height:100%; background:var(--primary); border-radius:2px; transition:width .1s linear; }
-  .sim-tur-bar__btn { background:none; border:1px solid var(--border); color:var(--text3);
-                      border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; }
-  .sim-tur-bar__btn:hover { background:var(--bg3); color:var(--text); }
+  .sim-mobile-controls {
+      position: absolute; bottom: 20px; left: 0; right: 0;
+      display: none; justify-content: space-between; padding: 0 15px;
+      z-index: 999; pointer-events: none;
+  }
+  .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
+  @media (max-width: 1024px) { .sim-mobile-controls { display: flex; } }
 
-  .sim-hint { font-size:11px; color:var(--text3); margin:6px 0 0 2px; }
+  .sim-dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; pointer-events: auto; }
+  .sim-joy-btn {
+      background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.4);
+      color: #fff; border-radius: 50%; font-size: 14px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; cursor: pointer;
+  }
+  .sim-joy-btn:active { background: #3b82f6; border-color: #3b82f6; }
 
-  .sim-info { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:.8rem; }
-  @media(max-width:600px){ .sim-info { grid-template-columns:1fr; } }
-  .sim-info-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
-  .sim-info-card__icon  { font-size:20px; margin-bottom:6px; }
-  .sim-info-card__title { font-size:13px; font-weight:700; margin-bottom:4px; }
-  .sim-info-card__text  { font-size:12px; color:var(--text3); line-height:1.5; }
+  .sim-controls { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:.8rem; }
+  @media(max-width:600px){ .sim-controls { grid-template-columns:1fr; } }
+  .sim-ctrl-card        { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+  .sim-ctrl-card__title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .sim-ctrl-card__item  { display:flex; justify-content:space-between; font-size:12px;
+                          padding:3px 0; border-bottom:1px solid var(--border); }
+  .sim-ctrl-card__item:last-child { border:none; }
+  .sim-ctrl-card__key   { background:var(--bg3); border:1px solid var(--border);
+                          border-radius:4px; padding:1px 7px; font-family:monospace;
+                          font-size:11px; color:var(--text); }
 
   .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
   .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
   .cesium-widget-credits { display:none !important; }
 
-  .sim-footer { text-align:center; padding:1.5rem 0 1rem; font-size:12px; color:var(--text3); }
+  .sim-hint { font-size:11px; color:var(--text3); margin:4px 0 0 2px; }
+  .sim-footer { text-align:center; padding: 1.5rem 0 1rem; font-size:12px; color:var(--text3); }
   .sim-footer a { color:var(--primary); text-decoration:none; }
 </style>
 </head>
@@ -83,12 +100,35 @@
 
   <div class="sim-band">
     <div>
-      <h1 class="sim-band__title">Gazete32 · Isparta 3D Gezi</h1>
-      <p class="sim-band__sub">Davraz · Eğirdir Gölü · Isparta Ovası — gerçek arazi, sanal uçuş</p>
+      <h1 class="sim-band__title">Gazete32 Isparta Uçuş Simülatörü</h1>
+      <p class="sim-band__sub">Davraz · Eğirdir Gölü · Isparta Ovası — 3D gerçek arazi</p>
     </div>
     <div class="sim-band__badge">
       <span class="sim-band__dot"></span>
-      Canlı 3D
+      CesiumJS · Canlı
+    </div>
+  </div>
+
+  <div class="sim-hud">
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Yükseklik</div>
+      <div class="sim-hud__val" id="hud-alt">-- m</div>
+      <div class="sim-hud__sub">Deniz seviyesinden</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Hız</div>
+      <div class="sim-hud__val" id="hud-spd">-- km/s</div>
+      <div class="sim-hud__sub">Yatay hız</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Konum</div>
+      <div class="sim-hud__val" style="font-size:13px;padding-top:4px;" id="hud-pos">--</div>
+      <div class="sim-hud__sub">Enlem / Boylam</div>
+    </div>
+    <div class="sim-hud__card">
+      <div class="sim-hud__label">Yön</div>
+      <div class="sim-hud__val" id="hud-dir">--°</div>
+      <div class="sim-hud__sub" id="hud-dirstr">--</div>
     </div>
   </div>
 
@@ -98,99 +138,69 @@
     <button class="sim-toolbar__btn" onclick="simNoktaGit('egirdir',this)">🌊 Eğirdir Gölü</button>
     <button class="sim-toolbar__btn" onclick="simNoktaGit('merkez',this)">🏙 Şehir Merkezi</button>
     <span class="sim-toolbar__sep"></span>
-    <button class="sim-toolbar__btn" onclick="simTamEkran()" id="sim-fs-btn">⛶ Tam Ekran</button>
+    <button class="sim-toolbar__btn" onclick="simTamEkran()">⛶ Tam Ekran</button>
   </div>
 
-  <div class="sim-tur-bar">
-    <span class="sim-tur-bar__label">Otomatik Tur:</span>
-    <span class="sim-tur-bar__nokta" id="tur-nokta-adi">Havalimanı</span>
-    <div class="sim-tur-bar__progress"><div class="sim-tur-bar__fill" id="tur-fill" style="width:0%"></div></div>
-    <button class="sim-tur-bar__btn" id="tur-btn" onclick="turToggle()">⏸ Duraklat</button>
+  <div class="sim-container-wrapper">
+      <div id="sim-container" tabindex="0"></div>
+      
+      <div class="sim-mobile-controls">
+          <div class="sim-dpad">
+              <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
+              <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
+              <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
+          </div>
+          <div class="sim-dpad" style="grid-template-columns: repeat(1, 46px); grid-template-rows: repeat(2, 42px); margin-top:20px;">
+              <div class="sim-joy-btn" data-key="w" style="border-radius: 6px;">+W</div>
+              <div class="sim-joy-btn" data-key="s" style="border-radius: 6px; margin-top:4px;">-S</div>
+          </div>
+      </div>
   </div>
-
-  <div id="sim-container"></div>
-  <p class="sim-hint">🖱️ Sürükle · Kaydır · Çift tıkla yakınlaş &nbsp;|&nbsp; Sekmelerden nokta seç &nbsp;|&nbsp; Tur otomatik devam eder</p>
+  
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla, <b>A/D</b> Sağa/Sola Jet Dönüşü, <b>E/Q</b> Yüksel/Alçal.</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
-  <div class="sim-info">
-    <div class="sim-info-card">
-      <div class="sim-info-card__icon">⛰</div>
-      <div class="sim-info-card__title">Davraz Dağı</div>
-      <div class="sim-info-card__text">2635 m rakımıyla Isparta'nın en yüksek zirvesi. Kış aylarında kayak merkezi olarak hizmet verir.</div>
+  <div class="sim-controls">
+    <div class="sim-ctrl-card">
+      <div class="sim-ctrl-card__title">✈ Uçuş Kontrolleri</div>
+      <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Sola / Sağa Keskin Dönüş</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
     </div>
-    <div class="sim-info-card">
-      <div class="sim-info-card__icon">🌊</div>
-      <div class="sim-info-card__title">Eğirdir Gölü</div>
-      <div class="sim-info-card__text">Türkiye'nin 4. büyük tatlı su gölü. 468 km² yüzey alanıyla Isparta'nın en önemli doğal güzelliği.</div>
-    </div>
-    <div class="sim-info-card">
-      <div class="sim-info-card__icon">🌹</div>
-      <div class="sim-info-card__title">Gül Şehri Isparta</div>
-      <div class="sim-info-card__text">Dünyanın gül yağı üretiminin %70'ini karşılayan Isparta, "Gül Şehri" lakabıyla dünyaca tanınır.</div>
+    <div class="sim-ctrl-card">
+      <div class="sim-ctrl-card__title">📍 Noktalar</div>
+      <div class="sim-ctrl-card__item"><span>Havalimanı</span><span style="color:var(--text3);font-size:11px;">37.855°N 30.568°E</span></div>
+      <div class="sim-ctrl-card__item"><span>Davraz Dağı</span><span style="color:var(--text3);font-size:11px;">37.741°N 30.755°E</span></div>
+      <div class="sim-ctrl-card__item"><span>Eğirdir Gölü</span><span style="color:var(--text3);font-size:11px;">37.874°N 30.857°E</span></div>
     </div>
   </div>
 
   <div class="sim-footer">
-    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta 3D Sanal Gezi
+    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta Uçuş Simülatörü
   </div>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Cesium.js"></script>
 <script>
-(function() {
+(function simBaslat() {
     if (typeof Cesium === 'undefined' || !Cesium.Viewer) {
         document.getElementById('sim-container').innerHTML =
             '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;flex-direction:column;gap:12px;">' +
             '<span style="font-size:40px;">⚠️</span>' +
-            '<p style="font-size:14px;opacity:.7;text-align:center;">CesiumJS yüklenemedi.<br>Sayfayı yenileyin.</p></div>';
+            '<p style="font-size:14px;opacity:.7;text-align:center;">CesiumJS yüklenemedi.<br>Lütfen sayfayı yenileyin.</p></div>';
         return;
     }
 
+    /* ── CESIUM ION TOKEN ── */
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
-    /* ── NOKTALAR — her noktanın birden fazla kamera açısı var ── */
     var NOKTALAR = {
-        havaalani: {
-            ad: 'Havalimanı',
-            turlar: [
-                { lon:30.5682, lat:37.8453, alt:2800, heading:0,   pitch:-25 },
-                { lon:30.5682, lat:37.8653, alt:1600, heading:180, pitch:-18 },
-                { lon:30.5382, lat:37.8553, alt:2200, heading:90,  pitch:-20 },
-            ]
-        },
-        davraz: {
-            ad: 'Davraz Dağı',
-            turlar: [
-                { lon:30.7550, lat:37.7210, alt:4500, heading:0,   pitch:-30 },
-                { lon:30.7250, lat:37.7410, alt:3200, heading:100, pitch:-22 },
-                { lon:30.7750, lat:37.7610, alt:3800, heading:220, pitch:-28 },
-            ]
-        },
-        egirdir: {
-            ad: 'Eğirdir Gölü',
-            turlar: [
-                { lon:30.8570, lat:37.8540, alt:3500, heading:0,   pitch:-35 },
-                { lon:30.9070, lat:37.8740, alt:2200, heading:270, pitch:-20 },
-                { lon:30.8070, lat:37.9040, alt:2800, heading:150, pitch:-25 },
-            ]
-        },
-        merkez: {
-            ad: 'Şehir Merkezi',
-            turlar: [
-                { lon:30.5550, lat:37.7440, alt:2500, heading:0,   pitch:-30 },
-                { lon:30.5250, lat:37.7640, alt:1800, heading:80,  pitch:-20 },
-                { lon:30.5850, lat:37.7840, alt:2200, heading:200, pitch:-25 },
-            ]
-        },
+        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1400 },
+        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
+        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1800 },
+        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1500 },
     };
-
-    var TUR_SIRASI = ['havaalani','davraz','egirdir','merkez'];
-    var turAktif   = true;
-    var turNoktaIdx = 0;
-    var turAciIdx   = 0;
-    var turZaman    = 0;
-    var TUR_BEKLEME = 6000; /* ms — her açıda kalma süresi */
 
     var viewer = new Cesium.Viewer('sim-container', {
         baseLayerPicker      : false,
@@ -209,120 +219,203 @@
 
     Cesium.CesiumTerrainProvider.fromIonAssetId(1)
         .then(function(tp) { viewer.terrainProvider = tp; })
-        .catch(function(e) { console.warn('Terrain:', e); });
+        .catch(function(e) { console.warn('Terrain hatası.', e); });
 
-    viewer.scene.skyAtmosphere.show            = true;
+    viewer.scene.skyAtmosphere.show            = true; 
     viewer.scene.globe.enableLighting          = false;
     viewer.scene.fog.enabled                   = true;
-    viewer.scene.fog.density                   = 0.0002;
-    viewer.scene.globe.maximumScreenSpaceError = 4;
-    viewer.resolutionScale                     = 0.85;
+    viewer.scene.globe.maximumScreenSpaceError = 8;
+    viewer.resolutionScale                     = 0.85; 
 
-    /* Fare müdahalesinde turu durdur */
-    var fareHareket = false;
-    var fareZamanlayici;
-    ['LEFT_DOWN','WHEEL','PINCH_START'].forEach(function(tip) {
-        viewer.scene.canvas.addEventListener(tip === 'WHEEL' ? 'wheel' : 'mousedown', function() {
-            fareHareket = true;
-            clearTimeout(fareZamanlayici);
-            fareZamanlayici = setTimeout(function() {
-                fareHareket = false;
-            }, 8000); /* 8 sn fare hareketi yoksa tur devam eder */
-        }, { passive: true });
+    viewer.scene.screenSpaceCameraController.enableRotate = false;
+    viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    viewer.scene.screenSpaceCameraController.enableZoom = false;
+    viewer.scene.screenSpaceCameraController.enableTilt = false;
+    viewer.scene.screenSpaceCameraController.enableLook = false;
+
+    var simEl = document.getElementById('sim-container');
+    simEl.addEventListener('click', function() { this.focus(); });
+
+    var lon = NOKTALAR.havaalani.lon;
+    var lat = NOKTALAR.havaalani.lat;
+    var alt = NOKTALAR.havaalani.alt;
+    
+    var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+    
+    var heading = 0;          
+    var pitch = -0.02;        
+    var roll = 0;             
+
+    var ucakKonteyner = viewer.entities.add({
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { 
+            return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, new Cesium.HeadingPitchRoll(heading, pitch, roll));
+        }, false),
+        label : { 
+            text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -35)
+        }
     });
-    viewer.scene.canvas.addEventListener('touchstart', function() {
-        fareHareket = true;
-        clearTimeout(fareZamanlayici);
-        fareZamanlayici = setTimeout(function() { fareHareket = false; }, 8000);
-    }, { passive: true });
 
-    /* İlk kamera — havalimanı */
-    function kameraKur(t, anlik) {
-        var hedef = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, t.alt);
-        if (anlik) {
-            viewer.camera.setView({
-                destination : hedef,
-                orientation : { heading: Cesium.Math.toRadians(t.heading), pitch: Cesium.Math.toRadians(t.pitch), roll: 0 }
-            });
+    // Gövde
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        cylinder : { 
+            length : 24.0, 
+            topRadius : 0.2, 
+            bottomRadius : 1.5, 
+            material : Cesium.Color.fromCssColorString('#3b82f6') 
+        },
+        orientation : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Cesium.Math.toRadians(90))
+    });
+
+    // Kanatlar
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        box : { 
+            dimensions : new Cesium.Cartesian3(4.0, 24.0, 0.4), 
+            material : Cesium.Color.fromCssColorString('#ef4444') 
+        }
+    });
+
+    // Kuyruk
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        box : { 
+            dimensions : new Cesium.Cartesian3(4.0, 0.4, 5.0), 
+            material : Cesium.Color.fromCssColorString('#f59e0b') 
+        },
+        position : new Cesium.CallbackProperty(function() {
+            return Cesium.Cartesian3.fromElements(-10.0, 0.0, 2.0);
+        }, false)
+    });
+
+    var mevcutHiz = 100;       
+    var hedefHiz = 115;
+    var minHiz = 40;
+    var maxHiz = 250;
+    
+    var tuslar = {};
+
+    window.addEventListener('keydown', function(e) {
+        var key = e.key.toLowerCase();
+        tuslar[key] = true;
+        if (['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(key) > -1) {
+            if(document.activeElement === simEl) e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', function(e) { 
+        tuslar[e.key.toLowerCase()] = false; 
+    });
+
+    document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
+        var key = btn.getAttribute('data-key');
+        btn.addEventListener('touchstart', function(e) { 
+            tuslar[key] = true; 
+            e.preventDefault(); 
+        }, {passive: false});
+        btn.addEventListener('touchend', function(e) { 
+            tuslar[key] = false; 
+            e.preventDefault(); 
+        }, {passive: false});
+    });
+
+    var oncekiZaman = performance.now();
+    var hudSayac = 0;
+
+    function lerp(start, end, amt) {
+        return (1 - amt) * start + amt * end;
+    }
+
+    function guncelle(simdi) {
+        requestAnimationFrame(guncelle);
+
+        var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
+        oncekiZaman = simdi;
+
+        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz);
+        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz);
+        mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
+
+        // 🌟 JET DÖNÜŞÜ: Çarpanı 1.3'ten 2.8'e çekerek dönüşleri acayip serileştirdik.
+        if (tuslar['a']) {
+            heading -= 2.8 * dt;  
+            roll = lerp(roll, -0.4, 5 * dt);
+        } else if (tuslar['d']) {
+            heading += 2.8 * dt;  
+            roll = lerp(roll, 0.4, 5 * dt);
         } else {
-            viewer.camera.flyTo({
-                destination : hedef,
-                orientation : { heading: Cesium.Math.toRadians(t.heading), pitch: Cesium.Math.toRadians(t.pitch), roll: 0 },
-                duration    : 3.5,
-                easingFunction: Cesium.EasingFunction.SINUSOIDAL_IN_OUT,
-            });
+            roll = lerp(roll, 0, 4 * dt); 
         }
-    }
 
-    var ilkNokta = NOKTALAR[TUR_SIRASI[0]];
-    kameraKur(ilkNokta.turlar[0], true);
+        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
+        else pitch = lerp(pitch, 0, 2 * dt);
 
-    /* HUD bar güncelle */
-    function hudGuncelle(doluluk, adText) {
-        document.getElementById('tur-fill').style.width = doluluk + '%';
-        document.getElementById('tur-nokta-adi').textContent = adText;
-    }
+        var cosPitch = Math.cos(pitch);
+        var mesafeYatay = mevcutHiz * dt;
+        
+        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
+        var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
+        var deltaAlt = Math.sin(pitch) * mesafeYatay;
 
-    /* Tur döngüsü */
-    var sonZaman = performance.now();
-    function turDongu(simdi) {
-        requestAnimationFrame(turDongu);
-        var dt = simdi - sonZaman;
-        sonZaman = simdi;
+        lon += Cesium.Math.toDegrees(deltaLon);
+        lat += Cesium.Math.toDegrees(deltaLat);
+        alt = Math.max(alt + deltaAlt, 1050); 
 
-        if (!turAktif || fareHareket) return;
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
-        turZaman += dt;
-        var doluluk = Math.min((turZaman / TUR_BEKLEME) * 100, 100);
-        var mevcutNokta = NOKTALAR[TUR_SIRASI[turNoktaIdx]];
-        hudGuncelle(doluluk, mevcutNokta.ad);
+        // 🌟 YAKIN KAMERA: Kamerayı uçağın tam 55 metre arkasına sabitledik.
+        // Artık uçak ekranı dolduracak ve en ufak dönüş hamleni anında göreceksin.
+        var kameraMesafeDerece = 55 / 111000; 
+        var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
+        var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
+        var kamAlt = alt + 12 + (Math.sin(pitch) * 10);
 
-        if (turZaman >= TUR_BEKLEME) {
-            turZaman = 0;
-            turAciIdx++;
-            if (turAciIdx >= mevcutNokta.turlar.length) {
-                turAciIdx = 0;
-                turNoktaIdx = (turNoktaIdx + 1) % TUR_SIRASI.length;
-                /* Toolbar butonunu güncelle */
-                document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
-                var btns = document.querySelectorAll('.sim-toolbar__btn');
-                if (btns[turNoktaIdx]) btns[turNoktaIdx].classList.add('sim-toolbar__btn--aktif');
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8) + (pitch * 0.15), 6 * dt), 
+                roll: roll * -0.1 
             }
-            var yeniNokta = NOKTALAR[TUR_SIRASI[turNoktaIdx]];
-            kameraKur(yeniNokta.turlar[turAciIdx], false);
+        });
+
+        hudSayac++;
+        if (hudSayac % 10 === 0) {
+            var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
+            var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
+            document.getElementById('hud-alt').textContent    = Math.round(alt).toLocaleString() + ' m';
+            document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz * 3.6) + ' km/s';
+            document.getElementById('hud-pos').textContent    = lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E';
+            document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
+            document.getElementById('hud-dirstr').textContent = yonStr;
         }
     }
-    requestAnimationFrame(turDongu);
+    
+    requestAnimationFrame(guncelle);
 
-    /* Sekme tıklama */
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
-        turNoktaIdx = TUR_SIRASI.indexOf(id);
-        turAciIdx   = 0;
-        turZaman    = 0;
-        fareHareket = false;
-        kameraKur(n.turlar[0], false);
+        lon = n.lon; lat = n.lat; alt = n.alt;
+        heading = 0; pitch = -0.02; roll = 0;
+        hedefHiz = 110; mevcutHiz = 100;
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
 
-    /* Tur duraklat/devam */
-    window.turToggle = function() {
-        turAktif = !turAktif;
-        document.getElementById('tur-btn').textContent = turAktif ? '⏸ Duraklat' : '▶ Devam';
-    };
-
-    /* Tam ekran */
     var tamEkranAcik = false;
     window.simTamEkran = function() {
         tamEkranAcik = !tamEkranAcik;
         document.body.classList.toggle('sim-fullscreen', tamEkranAcik);
         document.body.style.overflow = tamEkranAcik ? 'hidden' : '';
-        setTimeout(function() { viewer.resize(); }, 100);
+        viewer.resize();
     };
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && tamEkranAcik) simTamEkran();
-    });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && tamEkranAcik) simTamEkran(); });
 
 })();
 </script>
