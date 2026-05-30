@@ -170,10 +170,10 @@
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
     var NOKTALAR = {
-        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1800 },
-        davraz    : { lon: 30.7550, lat: 37.7410, alt: 3500 },
-        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 2500 },
-        merkez    : { lon: 30.5550, lat: 37.7640, alt: 2000 },
+        havaalani : { lon: 30.5682, lat: 37.8553, alt: 1400 },
+        davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
+        egirdir   : { lon: 30.8570, lat: 37.8740, alt: 1800 },
+        merkez    : { lon: 30.5550, lat: 37.7640, alt: 1500 },
     };
 
     var viewer = new Cesium.Viewer('sim-container', {
@@ -198,15 +198,18 @@
     viewer.scene.skyAtmosphere.show            = false;
     viewer.scene.globe.enableLighting          = false;
     viewer.scene.fog.enabled                   = false;
-    viewer.scene.globe.maximumScreenSpaceError = 4;
+    viewer.scene.globe.maximumScreenSpaceError = 8; // Performans ve donma önleme için optimize edildi
     viewer.resolutionScale                     = 0.75;
 
     var simEl = document.getElementById('sim-container');
     simEl.addEventListener('click', function() { this.focus(); });
 
-    var pozisyon = Cesium.Cartesian3.fromDegrees(
-        NOKTALAR.havaalani.lon, NOKTALAR.havaalani.lat, NOKTALAR.havaalani.alt
-    );
+    // Başlangıç pozisyonu kartofrafik olarak ayarlanıyor
+    var lon = NOKTALAR.havaalani.lon;
+    var lat = NOKTALAR.havaalani.lat;
+    var alt = NOKTALAR.havaalani.alt;
+    
+    var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
     var ucakEntity = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
@@ -217,20 +220,21 @@
                      pixelOffset: new Cesium.Cartesian2(0, -24) },
     });
 
+    // İlk bakış kamerasını uçağın hemen arkasına güvenli bir biçimde sabitliyoruz
     viewer.camera.setView({
-        destination : Cesium.Cartesian3.fromDegrees(NOKTALAR.havaalani.lon, NOKTALAR.havaalani.lat - 0.01, NOKTAKAR.havaalani.alt + 800),
-        orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
+        destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.005, alt + 150),
+        orientation : { heading: 0, pitch: Cesium.Math.toRadians(-12), roll: 0 },
     });
 
-    // ── GERÇEKÇİ HAVACILIK DEĞİŞKENLERİ ──
-    var mevcutHiz = 100;      // m/s cinsinden mevcut uçuş hızı
-    var hedefHiz = 120;       // W/S ile ayarlanan hedef hız
+    // Uçuş parametreleri
+    var mevcutHiz = 90;       // m/s bazında akıcı hız
+    var hedefHiz = 110;
     var minHiz = 30;
-    var maxHiz = 350;
+    var maxHiz = 300;
     
-    var heading = 0;          // Rotanın baktığı yön (Yaw)
-    var pitch = -0.05;        // Burun yukarı/aşağı açısı (Pitch)
-    var roll = 0;             // Kanatların sağa/sola yatış açısı (Bank/Roll)
+    var heading = 0;          // Dönüş açısı
+    var pitch = -0.02;        // Eğim açısı
+    var roll = 0;             // Yatış açısı
     
     var tuslar = {};
 
@@ -250,88 +254,88 @@
         return (1 - amt) * start + amt * end;
     }
 
-    /* ── Havacılık Fiziğine Uygun Döngü ── */
+    /* ── Kilitlenmeyen ve Stabilize Edilmiş Ana Döngü ── */
     function guncelle(simdi) {
         requestAnimationFrame(guncelle);
 
         var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
         oncekiZaman = simdi;
 
-        // 1. GAZ DİNAMİĞİ (Hızlanma/Yavaşlama)
-        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz);
-        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz);
+        // 1. GAZ YÖNETİMİ
+        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 40 * dt, maxHiz);
+        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 40 * dt, minHiz);
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
-        // 2. YATIŞ (ROLL) VE BURUN (PITCH) DİNAMİĞİ
-        // A/D tuşları artık yönü değil, kanat yatış açısını (Roll) değiştirir
-        if (tuslar['a']) roll = lerp(roll, -0.6, 4 * dt);
-        else if (tuslar['d']) roll = lerp(roll, 0.6, 4 * dt);
-        else roll = lerp(roll, 0, 3 * dt); // Tuş bırakılınca kanatları düzelt
+        // 2. YÖLENME FİZİĞİ (Roll ve Pitch)
+        if (tuslar['a']) roll = lerp(roll, -0.5, 4 * dt);
+        else if (tuslar['d']) roll = lerp(roll, 0.5, 4 * dt);
+        else roll = lerp(roll, 0, 3 * dt);
 
-        // E/Q tuşları burun kaldırıp indirir
-        if (tuslar['e']) pitch = lerp(pitch, 0.4, 3 * dt);
-        else if (tuslar['q']) pitch = lerp(pitch, -0.4, 3 * dt);
-        else pitch = lerp(pitch, 0, 2 * dt); // Tuş bırakılınca burun yavaşça nötrlenir
+        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
+        else pitch = lerp(pitch, 0, 2 * dt);
 
-        // Havacılık kuralı: Uçak ne kadar yana yatarsa (roll), o kadar hızlı eksen değiştirir (heading)
-        // Dönüş hızı uçağın o anki hızıyla da orantılıdır
-        var donmeKatsayisi = roll * (mevcutHiz / 150) * 1.2;
-        heading += donmeKatsayisi * dt;
+        // Gerçekçi dönüş matematiği: Sağa yatış arttıkça heading pürüzsüzce sağa akar
+        heading += roll * (mevcutHiz / 120) * dt;
 
-        // 3. YÖN VE KOORDİNAT VEKTÖRÜ HESABI
-        var c = Cesium.Cartographic.fromCartesian(pozisyon);
-        
-        // Burun açısı ve mevcut hıza göre 3 boyutlu hareket vektörleri
+        // 3. KOORDİNAT GÜNCELLEME (Hassas radyan hesabı)
         var cosPitch = Math.cos(pitch);
-        var deltaLon = (-Math.sin(heading) * cosPitch) * (mevcutHiz * dt) / (6371000 * Math.cos(c.latitude));
-        var deltaLat = (Math.cos(heading) * cosPitch) * (mevcutHiz * dt) / 6371000;
-        var deltaAlt = Math.sin(pitch) * (mevcutHiz * dt);
+        var mesafeYatay = mevcutHiz * dt;
+        
+        // Dünya yarıçapı tabanlı dairesel koordinat kaydırma
+        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
+        var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
+        var deltaAlt = Math.sin(pitch) * mesafeYatay;
 
-        pozisyon = Cesium.Cartesian3.fromRadians(
-            c.longitude + deltaLon,
-            c.latitude + deltaLat,
-            Math.max(c.height + deltaAlt, 100) // Yere çakılma önleyici taban sınır
-        );
+        lon += Cesium.Math.toDegrees(deltaLon);
+        lat += Cesium.Math.toDegrees(deltaLat);
+        alt = Math.max(alt + deltaAlt, 100); // 100m taban limiti
 
-        // 4. KİLİTLİ SİNEMATİK KAMERA TAKİBİ
-        // Kamera uçağın tam arkasında akıcı bir mesafede kalır ve roll açısına göre esner
-        var kameraMesafeDerece = 550 / 111000; 
-        var kameraLon = Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * kameraMesafeDerece;
-        var kameraLat = Cesium.Math.toDegrees(c.latitude) - Math.cos(heading) * kameraMesafeDerece;
-        var kameraAlt = c.height + 180 + (Math.sin(pitch) * 80);
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+
+        // 4. ARKA KAMERA KİLİDİ
+        var mesafeDerece = 450 / 111000; 
+        var kamLon = lon - Math.sin(heading) * mesafeDerece;
+        var kamLat = lat - Math.cos(heading) * mesafeDerece;
+        var kamAlt = alt + 140 + (Math.sin(pitch) * 60);
 
         viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(kameraLon, kameraLat, kameraAlt),
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
             orientation : { 
                 heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.3), 5 * dt), 
-                roll: roll * -0.4 // Sağa dönerken ekranın da pürüzsüzce sağa yatması açısı
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.25), 5 * dt), 
+                roll: roll * -0.3 
             }
         });
 
-        /* HUD Arayüz Güncellemesi (10 frame'de bir) */
+        // HUD Güncellemesi
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
             var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
-            document.getElementById('hud-alt').textContent    = Math.round(c.height).toLocaleString() + ' m';
+            document.getElementById('hud-alt').textContent    = Math.round(alt).toLocaleString() + ' m';
             document.getElementById('hud-spd').textContent    = Math.round(mevcutHiz * 3.6) + ' km/s';
-            document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(c.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(c.longitude).toFixed(4) + '°E';
+            document.getElementById('hud-pos').textContent    = lat.toFixed(4) + '°N, ' + lon.toFixed(4) + '°E';
             document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
             document.getElementById('hud-dirstr').textContent = yonStr;
         }
     }
     
+    // Döngüyü başlat
     requestAnimationFrame(guncelle);
 
+    // Hızlı Nokta Geçiş Butonları Fonksiyonu
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
-        pozisyon = Cesium.Cartesian3.fromDegrees(n.lon, n.lat, n.alt);
-        heading = 0; pitch = -0.05; roll = 0;
-        hedefHiz = 120; mevcutHiz = 100;
+        lon = n.lon; lat = n.lat; alt = n.alt;
+        heading = 0; pitch = -0.02; roll = 0;
+        hedefHiz = 110; mevcutHiz = 90;
+        
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        
         viewer.camera.flyTo({
-            destination : Cesium.Cartesian3.fromDegrees(n.lon, n.lat - 0.02, n.alt + 1000),
-            orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
+            destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.01, alt + 400),
+            orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 },
             duration    : 2,
         });
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
@@ -349,3 +353,5 @@
 
 })();
 </script>
+</body>
+</html>
