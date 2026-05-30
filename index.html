@@ -42,10 +42,9 @@
                       background:var(--bg2); color:var(--text);
                       cursor:pointer; transition:background .15s; }
   .sim-toolbar__btn:hover  { background:var(--bg3); }
-  .sim-toolbar__btn--aktif { background:#1a2535; border-color:#1a2535; color:#fff; }
+  .sim-toolbar__btn--aktif { background:#1a2535; border-color:#3b82f6; color:#fff; }
   .sim-toolbar__sep        { flex:1; }
 
-  /* Taşıyıcı sarmal alan */
   .sim-container-wrapper { position: relative; width: 100%; }
 
   #sim-container { width:100%; height:560px; border-radius:8px; overflow:hidden;
@@ -60,7 +59,6 @@
                   font-weight:600; cursor:pointer; display:none; }
   .sim-fullscreen .sim-fs-close { display:block; }
 
-  /* ── MOBİL PANEL STILLERİ ── */
   .sim-mobile-controls {
       position: absolute; bottom: 20px; left: 0; right: 0;
       display: none; justify-content: space-between; padding: 0 15px;
@@ -159,22 +157,20 @@
       </div>
   </div>
   
-  <p class="sim-hint">⌨️ Haritaya tıklayın, ardından W/A/S/D/E/Q ile uçun.</p>
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S/A/D/E/Q</b> tuşları ile uçun. Fareyle basılı tutup sürükleyerek uçağın etrafına bakabilirsiniz.</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
   <div class="sim-controls">
     <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">✈ Uçuş</div>
-      <div class="sim-ctrl-card__item"><span>Gaz Ver (Hızlan)</span><span><span class="sim-ctrl-card__key">W</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Fren (Yavaşla)</span><span><span class="sim-ctrl-card__key">S</span></span></div>
+      <div class="sim-ctrl-card__title">✈ Uçuş Kontrolleri</div>
+      <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
       <div class="sim-ctrl-card__item"><span>Sola / Sağa Yatış (Dönüş)</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
       <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
     </div>
     <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">🎯 Kamera</div>
-      <div class="sim-ctrl-card__item"><span>Bakış açısı</span><span><span class="sim-ctrl-card__key">Fare sürükle</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Zoom</span><span><span class="sim-ctrl-card__key">Kaydırma</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Hız Kademesi (+/-)</span><span><span class="sim-ctrl-card__key">+</span> / <span class="sim-ctrl-card__key">-</span></span></div>
+      <div class="sim-ctrl-card__title">🎯 Kamera ve Fare</div>
+      <div class="sim-ctrl-card__item"><span>Kamerayı Döndür</span><span><span class="sim-ctrl-card__key">Sol Tık + Sürükle</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Yakınlaşma / Uzaklaşma</span><span><span class="sim-ctrl-card__key">Mouse Tekerleği</span></span></div>
     </div>
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">📍 Noktalar</div>
@@ -197,11 +193,11 @@
         document.getElementById('sim-container').innerHTML =
             '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;flex-direction:column;gap:12px;">' +
             '<span style="font-size:40px;">⚠️</span>' +
-            '<p style="font-size:14px;opacity:.7;text-align:center;">CesiumJS yüklenemedi.<br>Sayfayı yenileyin.</p></div>';
+            '<p style="font-size:14px;opacity:.7;text-align:center;">CesiumJS yüklenemedi.<br>Lütfen sayfayı yenileyin.</p></div>';
         return;
     }
 
-    /* ── TOKEN — buraya cesium.ion tokeninizi yazın ── */
+    /* ── CESIUM ION TOKEN ── */
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
     var NOKTALAR = {
@@ -228,61 +224,77 @@
 
     Cesium.CesiumTerrainProvider.fromIonAssetId(1)
         .then(function(tp) { viewer.terrainProvider = tp; })
-        .catch(function(e) { console.warn('Terrain:', e); });
+        .catch(function(e) { console.warn('Terrain hatası.', e); });
 
-    viewer.scene.skyAtmosphere.show            = false;
+    viewer.scene.skyAtmosphere.show            = true; 
     viewer.scene.globe.enableLighting          = false;
-    viewer.scene.fog.enabled                   = false;
-    viewer.scene.globe.maximumScreenSpaceError = 8; // Performans ve donma önleme için optimize edildi
-    viewer.resolutionScale                     = 0.75;
+    viewer.scene.fog.enabled                   = true;
+    viewer.scene.globe.maximumScreenSpaceError = 8;
+    viewer.resolutionScale                     = 0.85; 
+
+    // Kamera kontrol kısıtlamalarını esnetiyoruz (Yakınlaşma sınırı)
+    viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
+    viewer.scene.screenSpaceCameraController.maximumZoomDistance = 5000;
 
     var simEl = document.getElementById('sim-container');
     simEl.addEventListener('click', function() { this.focus(); });
 
-    // Başlangıç pozisyonu kartofrafik olarak ayarlanıyor
     var lon = NOKTALAR.havaalani.lon;
     var lat = NOKTALAR.havaalani.lat;
     var alt = NOKTALAR.havaalani.alt;
     
     var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+    var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
+    var oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
     var ucakEntity = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
-        point    : { pixelSize: 14, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
-        label    : { text: '✈ Isparta', font: 'bold 13px Arial', fillColor: Cesium.Color.WHITE,
-                     outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
-                     style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                     pixelOffset: new Cesium.Cartesian2(0, -24) },
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
+        cylinder : {
+            length : 18.0,
+            topRadius : 0.0,
+            bottomRadius : 5.0,
+            material : Cesium.Color.fromCssColorString('#22c55e')
+        },
+        label : { 
+            text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -30),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 4000.0)
+        },
     });
 
-    // İlk bakış kamerasını uçağın hemen arkasına güvenli bir biçimde sabitliyoruz
-    viewer.camera.setView({
-        destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.005, alt + 150),
-        orientation : { heading: 0, pitch: Cesium.Math.toRadians(-12), roll: 0 },
-    });
+    // 🌟 KESİN ÇÖZÜM: Kamerayı yerleşik olarak uçağa kilitliyoruz. 
+    // Böylece Cesium fare sürüklemelerini, yakınlaşmaları otomatik ve hatasız yönetir.
+    viewer.trackedEntity = ucakEntity;
+	viewer.trackedEntity = ucakEntity;
+// Uçağı arkadan temiz bir açıyla görmek için kamera ofseti ekliyoruz:
+viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); 
+ucakEntity.viewFrom = new Cesium.Cartesian3(-150.0, 0.0, 30.0);
 
-    // Uçuş parametreleri
-    var mevcutHiz = 90;       // m/s bazında akıcı hız
+    var mevcutHiz = 90;       
     var hedefHiz = 110;
     var minHiz = 30;
-    var maxHiz = 300;
+    var maxHiz = 250;
     
-    var heading = 0;          // Dönüş açısı
-    var pitch = -0.02;        // Eğim açısı
-    var roll = 0;             // Yatış açısı
+    var heading = 0;          
+    var pitch = -0.02;        
+    var roll = 0;             
     
     var tuslar = {};
 
     window.addEventListener('keydown', function(e) {
         var key = e.key.toLowerCase();
         tuslar[key] = true;
-        if (['w','a','s','d','q','e','+','-','='].indexOf(key) > -1) e.preventDefault();
+        if (['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(key) > -1) {
+            if(document.activeElement === simEl) e.preventDefault();
+        }
     });
     window.addEventListener('keyup', function(e) { 
         tuslar[e.key.toLowerCase()] = false; 
     });
 
-    /* ── MOBIL DOKUNMATIK DINLEYICILER KODA EKLEDI ── */
     document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
         var key = btn.getAttribute('data-key');
         btn.addEventListener('touchstart', function(e) { 
@@ -302,61 +314,43 @@
         return (1 - amt) * start + amt * end;
     }
 
-    /* ── Kilitlenmeyen ve Stabilize Edilmiş Ana Döngü ── */
     function guncelle(simdi) {
         requestAnimationFrame(guncelle);
 
         var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
         oncekiZaman = simdi;
 
-        // 1. GAZ YÖNETİMİ
         if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 40 * dt, maxHiz);
         if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 40 * dt, minHiz);
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
-        // 2. YÖLENME FİZİĞİ (Roll ve Pitch)
-        if (tuslar['a']) roll = lerp(roll, -0.5, 4 * dt);
-        else if (tuslar['d']) roll = lerp(roll, 0.5, 4 * dt);
+        if (tuslar['a']) roll = lerp(roll, -0.4, 4 * dt);
+        else if (tuslar['d']) roll = lerp(roll, 0.4, 4 * dt);
         else roll = lerp(roll, 0, 3 * dt);
 
-        if (tuslar['e']) pitch = lerp(pitch, 0.3, 3 * dt);
-        else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3 * dt);
+        if (tuslar['e']) pitch = lerp(pitch, 0.25, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.25, 3 * dt);
         else pitch = lerp(pitch, 0, 2 * dt);
 
-        // Gerçekçi dönüş matematiği: Sağa yatış arttıkça heading pürüzszcce sağa akar
         heading += roll * (mevcutHiz / 120) * dt;
 
-        // 3. KOORDİNAT GÜNCELLEME (Hassas radyan hesabı)
         var cosPitch = Math.cos(pitch);
         var mesafeYatay = mevcutHiz * dt;
         
-        // Dünya yarıçapı tabanlı dairesel koordinat kaydırma
         var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
         var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
         var deltaAlt = Math.sin(pitch) * mesafeYatay;
 
         lon += Cesium.Math.toDegrees(deltaLon);
         lat += Cesium.Math.toDegrees(deltaLat);
-        alt = Math.max(alt + deltaAlt, 100); // 100m taban limiti
+        alt = Math.max(alt + deltaAlt, 1050); 
 
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+        hpr.heading = heading;
+        hpr.pitch = pitch + Cesium.Math.toRadians(90); 
+        hpr.roll = roll;
+        oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
-        // 4. ARKA KAMERA KİLİDİ
-        var mesafeDerece = 450 / 111000; 
-        var kamLon = lon - Math.sin(heading) * mesafeDerece;
-        var kamLat = lat - Math.cos(heading) * mesafeDerece;
-        var kamAlt = alt + 140 + (Math.sin(pitch) * 60);
-
-        viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
-            orientation : { 
-                heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.25), 5 * dt), 
-                roll: roll * -0.3 
-            }
-        });
-
-        // HUD Güncellemesi
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
@@ -369,10 +363,8 @@
         }
     }
     
-    // Döngüyü başlat
     requestAnimationFrame(guncelle);
 
-    // Hızlı Nokta Geçiş Butonları Fonksiyonu
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
         lon = n.lon; lat = n.lat; alt = n.alt;
@@ -381,11 +373,7 @@
         
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         
-        viewer.camera.flyTo({
-            destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.01, alt + 400),
-            orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 },
-            duration    : 2,
-        });
+        // Kamera kilitli olduğu için direkt uçağı yeni noktaya ışınlıyoruz, kamera otomatik takip ediyor
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
