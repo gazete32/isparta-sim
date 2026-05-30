@@ -241,7 +241,6 @@
 
     /* ── TÜM NOKTALAR (toolbar + yerler listesi) ── */
     var NOKTALAR = {
-    var NOKTALAR = {
         havaalani  : { ad:'Havalimanı',           icon:'✈',  lon:30.5682, lat:37.8553, alt:1400 },
         davraz     : { ad:'Davraz Dağı',           icon:'⛰', lon:30.7550, lat:37.7410, alt:2800 },
         egirdir    : { ad:'Eğirdir Gölü',          icon:'🌊', lon:30.8570, lat:37.8740, alt:1800 },
@@ -270,7 +269,6 @@
         card.addEventListener('click', function() { simNoktaGit(id, null); });
         yerGrid.appendChild(card);
     });
-
 
     var viewer = new Cesium.Viewer('sim-container', {
         baseLayerPicker:false, geocoder:false, homeButton:false,
