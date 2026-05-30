@@ -1,8 +1,3 @@
-Tabii ki, fizik tabanlı ve akıcı yeni uçuş mekaniklerinin uygulandığı, tüm sayfa yapısını, CSS stillerini ve optimize edilmiş JavaScript döngüsünü içeren **`index.html`** kodunun tamamı aşağıdadır.
-
-Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
-
-```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -129,7 +124,7 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
   </div>
 
   <div id="sim-container" tabindex="0"></div>
-  <p class="sim-hint">⌨️ Haritaya tıklayın, ardından W/A/S/D ile uçun.</p>
+  <p class="sim-hint">⌨️ Haritaya tıklayın, ardından W/A/S/D/E/Q ile uçun.</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
   <div class="sim-controls">
@@ -137,7 +132,7 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
       <div class="sim-ctrl-card__title">✈ Uçuş</div>
       <div class="sim-ctrl-card__item"><span>Gaz Ver (Hızlan)</span><span><span class="sim-ctrl-card__key">W</span></span></div>
       <div class="sim-ctrl-card__item"><span>Fren (Yavaşla)</span><span><span class="sim-ctrl-card__key">S</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Sola / Sağa Dönüş</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Sola / Sağa Yatış (Dönüş)</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
       <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
     </div>
     <div class="sim-ctrl-card">
@@ -223,18 +218,19 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
     });
 
     viewer.camera.setView({
-        destination : Cesium.Cartesian3.fromDegrees(NOKTALAR.havaalani.lon, NOKTALAR.havaalani.lat - 0.01, NOKTALAR.havaalani.alt + 800),
+        destination : Cesium.Cartesian3.fromDegrees(NOKTALAR.havaalani.lon, NOKTALAR.havaalani.lat - 0.01, NOKTAKAR.havaalani.alt + 800),
         orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
     });
 
-    // ── AKICI FİZİK DEĞİŞKENLERİ ──
-    var mevcutHiz = 80;       // m/s cinsinden anlık hız
-    var hedefHiz = 100;       // Gitmek istediğimiz baz hız
-    var minHiz = 20;
-    var maxHiz = 400;
+    // ── GERÇEKÇİ HAVACILIK DEĞİŞKENLERİ ──
+    var mevcutHiz = 100;      // m/s cinsinden mevcut uçuş hızı
+    var hedefHiz = 120;       // W/S ile ayarlanan hedef hız
+    var minHiz = 30;
+    var maxHiz = 350;
     
-    var heading = 0, pitch = -0.1;
-    var turnSpeed = 0, pitchSpeed = 0; // Dönüş ve eğim ivmeleri
+    var heading = 0;          // Rotanın baktığı yön (Yaw)
+    var pitch = -0.05;        // Burun yukarı/aşağı açısı (Pitch)
+    var roll = 0;             // Kanatların sağa/sola yatış açısı (Bank/Roll)
     
     var tuslar = {};
 
@@ -250,42 +246,42 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
     var oncekiZaman = performance.now();
     var hudSayac = 0;
 
-    // Lineer interpolasyon (Yumuşak geçiş / Atalet fonksiyonu)
     function lerp(start, end, amt) {
         return (1 - amt) * start + amt * end;
     }
 
-    /* ── Geliştirilmiş Uçuş Döngüsü ── */
+    /* ── Havacılık Fiziğine Uygun Döngü ── */
     function guncelle(simdi) {
         requestAnimationFrame(guncelle);
 
         var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
         oncekiZaman = simdi;
 
-        // 1. GAZ KONTROLÜ (W: Hızlanma, S: Yavaşlama)
-        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 60 * dt, maxHiz);
-        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 60 * dt, minHiz);
-        if (tuslar['+'] || tuslar['=']) { hedefHiz = Math.min(hedefHiz + 30, maxHiz); tuslar['+'] = tuslar['='] = false; }
-        if (tuslar['-'])                { hedefHiz = Math.max(hedefHiz - 30, minHiz); tuslar['-'] = false; }
+        // 1. GAZ DİNAMİĞİ (Hızlanma/Yavaşlama)
+        if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50 * dt, maxHiz);
+        if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50 * dt, minHiz);
+        mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
-        // Atalet etkisi: Mevcut hızı hedef hıza doğru pürüzsüzce yaklaştırır
-        mevcutHiz = lerp(mevcutHiz, hedefHiz, 4 * dt);
+        // 2. YATIŞ (ROLL) VE BURUN (PITCH) DİNAMİĞİ
+        // A/D tuşları artık yönü değil, kanat yatış açısını (Roll) değiştirir
+        if (tuslar['a']) roll = lerp(roll, -0.6, 4 * dt);
+        else if (tuslar['d']) roll = lerp(roll, 0.6, 4 * dt);
+        else roll = lerp(roll, 0, 3 * dt); // Tuş bırakılınca kanatları düzelt
 
-        // 2. YÖN VE BURUN AÇISI KONTROLÜ (A/D ve E/Q)
-        if (tuslar['a']) turnSpeed = lerp(turnSpeed, -0.7, 5 * dt);
-        else if (tuslar['d']) turnSpeed = lerp(turnSpeed, 0.7, 5 * dt);
-        else turnSpeed = lerp(turnSpeed, 0, 4 * dt); // Tuş bırakılınca süzülerek durur
+        // E/Q tuşları burun kaldırıp indirir
+        if (tuslar['e']) pitch = lerp(pitch, 0.4, 3 * dt);
+        else if (tuslar['q']) pitch = lerp(pitch, -0.4, 3 * dt);
+        else pitch = lerp(pitch, 0, 2 * dt); // Tuş bırakılınca burun yavaşça nötrlenir
 
-        if (tuslar['e']) pitchSpeed = lerp(pitchSpeed, 0.3, 5 * dt);
-        else if (tuslar['q']) pitchSpeed = lerp(pitchSpeed, -0.3, 5 * dt);
-        else pitchSpeed = lerp(pitchSpeed, 0, 4 * dt);
+        // Havacılık kuralı: Uçak ne kadar yana yatarsa (roll), o kadar hızlı eksen değiştirir (heading)
+        // Dönüş hızı uçağın o anki hızıyla da orantılıdır
+        var donmeKatsayisi = roll * (mevcutHiz / 150) * 1.2;
+        heading += donmeKatsayisi * dt;
 
-        heading += turnSpeed * dt;
-        pitch = Math.max(Math.min(pitch + pitchSpeed * dt, 0.7), -0.7);
-
-        // 3. YENİ POZİSYON HESABI (3 Boyutlu Vektör)
+        // 3. YÖN VE KOORDİNAT VEKTÖRÜ HESABI
         var c = Cesium.Cartographic.fromCartesian(pozisyon);
         
+        // Burun açısı ve mevcut hıza göre 3 boyutlu hareket vektörleri
         var cosPitch = Math.cos(pitch);
         var deltaLon = (-Math.sin(heading) * cosPitch) * (mevcutHiz * dt) / (6371000 * Math.cos(c.latitude));
         var deltaLat = (Math.cos(heading) * cosPitch) * (mevcutHiz * dt) / 6371000;
@@ -294,25 +290,26 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
         pozisyon = Cesium.Cartesian3.fromRadians(
             c.longitude + deltaLon,
             c.latitude + deltaLat,
-            Math.max(c.height + deltaAlt, 100) // Yere çakılma koruması
+            Math.max(c.height + deltaAlt, 100) // Yere çakılma önleyici taban sınır
         );
 
-        // 4. AKICI KAMERA TAKİBİ VE SARKMA EFEKTİ
-        var idealKameraMesafe = 600 / 111000; 
-        var hedefKameraLon = Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * idealKameraMesafe;
-        var hedefKameraLat = Cesium.Math.toDegrees(c.latitude) - Math.cos(heading) * idealKameraMesafe;
-        var hedefKameraAlt = c.height + 220 + (Math.sin(pitch) * 100); 
+        // 4. KİLİTLİ SİNEMATİK KAMERA TAKİBİ
+        // Kamera uçağın tam arkasında akıcı bir mesafede kalır ve roll açısına göre esner
+        var kameraMesafeDerece = 550 / 111000; 
+        var kameraLon = Cesium.Math.toDegrees(c.longitude) - Math.sin(heading) * kameraMesafeDerece;
+        var kameraLat = Cesium.Math.toDegrees(c.latitude) - Math.cos(heading) * kameraMesafeDerece;
+        var kameraAlt = c.height + 180 + (Math.sin(pitch) * 80);
 
         viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(hedefKameraLon, hedefKameraLat, hedefKameraAlt),
+            destination : Cesium.Cartesian3.fromDegrees(kameraLon, kameraLat, kameraAlt),
             orientation : { 
                 heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-14) + (pitch * 0.2), 6 * dt), 
-                roll: turnSpeed * -0.2 // Dönüşlerde uçağın/kameranın kanat yatış açısı (Bank açısı)
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.3), 5 * dt), 
+                roll: roll * -0.4 // Sağa dönerken ekranın da pürüzsüzce sağa yatması açısı
             }
         });
 
-        /* HUD Arayüz Güncellemesi (Her frame yerine 10 frame'de bir) */
+        /* HUD Arayüz Güncellemesi (10 frame'de bir) */
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
@@ -330,8 +327,8 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
         pozisyon = Cesium.Cartesian3.fromDegrees(n.lon, n.lat, n.alt);
-        heading = 0; pitch = -0.1;
-        hedefHiz = 100; mevcutHiz = 80; 
+        heading = 0; pitch = -0.05; roll = 0;
+        hedefHiz = 120; mevcutHiz = 100;
         viewer.camera.flyTo({
             destination : Cesium.Cartesian3.fromDegrees(n.lon, n.lat - 0.02, n.alt + 1000),
             orientation : { heading: 0, pitch: Cesium.Math.toRadians(-20), roll: 0 },
@@ -352,7 +349,3 @@ Bu kodu doğrudan kopyalayıp repondaki dosyanın üzerine yazabilirsin:
 
 })();
 </script>
-</body>
-</html>
-
-```
