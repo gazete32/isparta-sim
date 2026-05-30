@@ -1,165 +1,227 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Isparta Uçuş Simülatörü — 3D Sanal Uçuş</title>
-<meta name="description" content="Isparta üzerinde 3D sanal uçuş simülatörü. Davraz, Eğirdir Gölü ve Isparta ovasını havadan keşfedin.">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Widgets/widgets.css">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #111827; --bg2: #1f2937; --bg3: #374151;
-    --border: #374151; --text: #f9fafb; --text3: #9ca3af;
-    --primary: #3b82f6;
-  }
-  html, body {
-    margin: 0; padding: 0; width: 100%; height: 100%;
-    overflow: hidden; /* Iframe içi kaydırma çubuklarını tamamen kapatır */
-  }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
-  
-  .sim-page { 
-    max-width: 1100px; padding: 10px 12px; margin: 0 auto; height: 100%;
-    display: flex; flex-direction: column; justify-content: flex-start;
-  }
+<?php
+/**
+ * Template Name: Isparta Uçuş Simülatörü
+ * Template Post Type: page
+ * @package HaberTemasi
+ */
 
-  .sim-band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
-              background:var(--bg2); border:1px solid var(--border);
-              border-radius:8px; padding:.6rem 1.2rem; margin-bottom:.6rem; }
-  .sim-band__title { font-size:18px; font-weight:700; color:var(--text); margin:0; }
-  .sim-band__sub   { font-size:12px; color:var(--text3); margin:2px 0 0; }
-  .sim-band__badge { margin-left:auto; background:#0f1f30; color:#22c55e;
-                     font-size:11px; font-weight:700; padding:4px 12px;
-                     border-radius:20px; display:flex; align-items:center; gap:5px; }
-  .sim-band__dot   { width:7px; height:7px; border-radius:50%; background:#22c55e;
-                     animation:sim-pulse 1.5s ease-in-out infinite; }
-  @keyframes sim-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+/* ── SEO ── */
+add_action( 'wp_head', function () {
+    $canonical   = home_url( '/isparta-ucus-simulatoru/' );
+    $sayfa_adi   = 'Isparta Uçuş Simülatörü — 3D Sanal Uçuş';
+    $description = 'Isparta üzerinde 3D sanal uçuş simülatörü. Davraz, Eğirdir Gölü ve Isparta ovasını havadan keşfedin. CesiumJS ile gerçek arazi verisi.';
 
-  .sim-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:.6rem; }
-  @media(max-width:600px){ .sim-hud { grid-template-columns:repeat(2,1fr); } }
-  .sim-hud__card  { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; }
-  .sim-hud__label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:2px; }
-  .sim-hud__val   { font-size:18px; font-weight:700; color:var(--text); font-family:monospace; }
-  .sim-hud__sub   { font-size:10px; color:var(--text3); margin-top:1px; }
+    $schema_webpage = [
+        '@context'    => 'https://schema.org',
+        '@type'       => 'WebPage',
+        'name'        => $sayfa_adi,
+        'description' => $description,
+        'url'         => $canonical,
+        'inLanguage'  => 'tr',
+        'isPartOf'    => [ '@type' => 'WebSite', 'name' => get_bloginfo('name'), 'url' => home_url('/') ],
+    ];
+    $schema_breadcrumb = [
+        '@context'        => 'https://schema.org',
+        '@type'           => 'BreadcrumbList',
+        'itemListElement' => [
+            [ '@type' => 'ListItem', 'position' => 1, 'name' => 'Ana Sayfa',              'item' => home_url('/') ],
+            [ '@type' => 'ListItem', 'position' => 2, 'name' => 'Isparta Uçuş Simülatörü', 'item' => $canonical ],
+        ],
+    ];
+    ?>
+    <link rel="canonical" href="<?php echo esc_url($canonical); ?>">
+    <meta name="description" content="<?php echo esc_attr($description); ?>">
+    <meta name="robots"      content="index, follow">
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="<?php echo esc_attr($sayfa_adi); ?>">
+    <meta property="og:description" content="<?php echo esc_attr($description); ?>">
+    <meta property="og:url"         content="<?php echo esc_url($canonical); ?>">
+    <meta property="og:locale"      content="tr_TR">
+    <script type="application/ld+json"><?php echo wp_json_encode($schema_webpage,   JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?></script>
+    <script type="application/ld+json"><?php echo wp_json_encode($schema_breadcrumb, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?></script>
 
-  .sim-toolbar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:.6rem; }
-  .sim-toolbar__btn { display:inline-flex; align-items:center; gap:5px;
-                      font-size:11px; font-weight:600; padding:5px 12px;
-                      border-radius:6px; border:1px solid var(--border);
-                      background:var(--bg2); color:var(--text);
-                      cursor:pointer; transition:background .15s; }
-  .sim-toolbar__btn:hover  { background:var(--bg3); }
-  .sim-toolbar__btn--aktif { background:#1a2535; border-color:#1a2535; color:#fff; }
-  .sim-toolbar__sep        { flex:1; }
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Widgets/widgets.css">
 
-  .sim-container-wrapper { position: relative; width: 100%; }
+    <style>
+    /* Simülatör sayfa stilleri */
+    .sim-page { max-width:1100px; padding:1rem 16px; margin:0 auto; position: relative; }
 
-  #sim-container { width:100%; height:450px; border-radius:8px; overflow:hidden;
-                   border:1px solid var(--border); position:relative;
-                   background:#0d1b2a; outline:none; cursor:crosshair; }
-  @media(max-width:600px){ #sim-container { height:350px; } }
+    /* Üst bilgi bandı */
+    .sim-band { display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+                background:var(--bg); border:1px solid var(--border);
+                border-radius:8px; padding:.8rem 1.2rem; margin-bottom:.8rem; }
+    .sim-band__title { font-size:18px; font-weight:700; color:var(--text); margin:0; }
+    .sim-band__sub   { font-size:12px; color:var(--text3); margin:2px 0 0; }
+    .sim-band__badge { margin-left:auto; background:#1a2535; color:#22c55e;
+                       font-size:11px; font-weight:700; padding:4px 12px;
+                       border-radius:20px; display:flex; align-items:center; gap:5px; }
+    .sim-band__dot   { width:7px; height:7px; border-radius:50%; background:#22c55e;
+                       animation:sim-pulse 1.5s ease-in-out infinite; }
+    @keyframes sim-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
-  .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:9999; height:100vh; border-radius:0; border:none; }
-  .sim-fs-close { position:fixed; top:14px; right:14px; z-index:10000;
-                  background:rgba(0,0,0,.7); color:#fff; border:none;
-                  border-radius:6px; padding:8px 16px; font-size:13px;
-                  font-weight:600; cursor:pointer; display:none; }
-  .sim-fullscreen .sim-fs-close { display:block; }
+    /* HUD üst metrikleri */
+    .sim-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:.8rem; }
+    @media(max-width:600px){ .sim-hud { grid-template-columns:repeat(2,1fr); } }
+    .sim-hud__card { background:var(--bg); border:1px solid var(--border);
+                     border-radius:8px; padding:10px 14px; }
+    .sim-hud__label { font-size:11px; color:var(--text3); text-transform:uppercase;
+                      letter-spacing:.5px; margin-bottom:4px; }
+    .sim-hud__val   { font-size:20px; font-weight:700; color:var(--text); font-family:monospace; }
+    .sim-hud__sub   { font-size:11px; color:var(--text3); margin-top:2px; }
 
-  /* Mobil Kontroller */
-  .sim-mobile-controls {
-      position: absolute; bottom: 20px; left: 0; right: 0;
-      display: none; justify-content: space-between; padding: 0 15px;
-      z-index: 999; pointer-events: none;
-  }
-  .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
-  @media (max-width: 1024px) { .sim-mobile-controls { display: flex; } }
+    /* Araç çubuğu */
+    .sim-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
+    .sim-toolbar__btn { display:inline-flex; align-items:center; gap:5px;
+                        font-size:12px; font-weight:600; padding:6px 14px;
+                        border-radius:6px; border:1px solid var(--border);
+                        background:var(--bg); color:var(--text);
+                        cursor:pointer; transition:background .15s; }
+    .sim-toolbar__btn:hover  { background:var(--bg3); }
+    .sim-toolbar__btn--aktif { background:#1a2535; border-color:#1a2535; color:#fff; }
+    .sim-toolbar__sep        { flex:1; }
 
-  .sim-dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; pointer-events: auto; }
-  .sim-joy-btn {
-      background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.4);
-      color: #fff; border-radius: 50%; font-size: 14px; font-weight: bold;
-      display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; cursor: pointer;
-  }
-  .sim-joy-btn:active { background: #3b82f6; border-color: #3b82f6; }
+    /* Harita alanı */
+    #sim-container { width:100%; height:560px; border-radius:8px; overflow:hidden;
+                     border:1px solid var(--border); position:relative;
+                     background:#0d1b2a; }
+    @media(max-width:600px){ #sim-container { height:420px; } }
 
-  .sim-controls { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:.6rem; }
-  @media(max-width:600px){ .sim-controls { grid-template-columns:1fr; } }
-  .sim-ctrl-card        { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; }
-  .sim-ctrl-card__title { font-size:11px; font-weight:700; color:var(--text); margin-bottom:4px; }
-  .sim-ctrl-card__item  { display:flex; justify-content:space-between; font-size:11px; padding:2px 0; border-bottom:1px solid var(--border); }
-  .sim-ctrl-card__item:last-child { border:none; }
-  .sim-ctrl-card__key   { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-family:monospace; font-size:10px; color:var(--text); }
+    /* Tam ekran modu */
+    .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:99999;
+                                      height:100vh; border-radius:0; border:none; }
+    .sim-fs-close { position:fixed; top:14px; right:14px; z-index:100000;
+                    background:rgba(0,0,0,.7); color:#fff; border:none;
+                    border-radius:6px; padding:8px 16px; font-size:13px;
+                    font-weight:600; cursor:pointer; display:none; }
+    .sim-fullscreen .sim-fs-close { display:block; }
 
-  .cesium-viewer-toolbar, .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer, .cesium-viewer-bottom, .cesium-widget-credits { display:none !important; }
-  .sim-hint { font-size:11px; color:var(--text3); margin:4px 0 0 2px; }
-</style>
-</head>
-<body>
-<div class="sim-page">
+    /* Mobil Kontrol Katmanı (Overlay) */
+    .sim-mobile-controls {
+        position: absolute; bottom: 30px; left: 0; right: 0;
+        display: none; justify-content: space-between; padding: 0 20px;
+        z-index: 9999; pointer-events: none;
+    }
+    /* Tam ekran açıldığında mobilde de alt katmana yapışsın */
+    .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 30px; z-index: 100001; }
+    
+    @media (max-width: 1024px) {
+        .sim-mobile-controls { display: flex; }
+    }
 
-  <div class="sim-band">
-    <div>
-      <h1 class="sim-band__title">Isparta Uçuş Simülatörü</h1>
-      <p class="sim-band__sub">Davraz · Eğirdir Gölü · Isparta Ovası — 3D gerçek arazi</p>
+    .sim-dpad {
+        display: grid; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 46px);
+        gap: 6px; pointer-events: auto;
+    }
+    .sim-joy-btn {
+        background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.5);
+        color: #fff; border-radius: 50%; font-size: 16px; font-weight: bold;
+        display: flex; align-items: center; justify-content: center;
+        user-select: none; -webkit-user-select: none; cursor: pointer;
+    }
+    .sim-joy-btn:active { background: #3b82f6; border-color: #3b82f6; }
+
+    /* Kontrol kılavuzu */
+    .sim-controls { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:.8rem; }
+    @media(max-width:600px){ .sim-controls { grid-template-columns:1fr; } }
+    .sim-ctrl-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+    .sim-ctrl-card__title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:6px; }
+    .sim-ctrl-card__item  { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px solid var(--border); }
+    .sim-ctrl-card__item:last-child { border:none; }
+    .sim-ctrl-card__key { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:1px 7px; font-family:monospace; font-size:11px; color:var(--text); }
+
+    /* Cesium UI gizleme */
+    .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer, .cesium-viewer-bottom, .cesium-widget-credits { display:none !important; }
+    </style>
+    <?php
+}, 1 );
+
+get_header();
+?>
+
+<div class="sim-page" id="sim-main-wrapper">
+
+    <div class="sim-band">
+        <div>
+            <h1 class="sim-band__title">Isparta Uçuş Simülatörü</h1>
+            <p class="sim-band__sub">Davraz · Eğirdir Gölü · Isparta Ovası — 3D gerçek arazi</p>
+        </div>
+        <div class="sim-band__badge">
+            <span class="sim-band__dot"></span>
+            CesiumJS · Canlı
+        </div>
     </div>
-    <div class="sim-band__badge"><span class="sim-band__dot"></span>CesiumJS · Canlı</div>
-  </div>
 
-  <div class="sim-hud">
-    <div class="sim-hud__card"><div class="sim-hud__label">Yükseklik</div><div class="sim-hud__val" id="hud-alt">-- m</div><div class="sim-hud__sub">Deniz seviyesinden</div></div>
-    <div class="sim-hud__card"><div class="sim-hud__label">Hız</div><div class="sim-hud__val" id="hud-spd">-- km/s</div><div class="sim-hud__sub">Yatay hız</div></div>
-    <div class="sim-hud__card"><div class="sim-hud__label">Konum</div><div class="sim-hud__val" style="font-size:11px;" id="hud-pos">--</div><div class="sim-hud__sub">Enlem / Boylam</div></div>
-    <div class="sim-hud__card"><div class="sim-hud__label">Yön</div><div class="sim-hud__val" id="hud-dir">--°</div><div class="sim-hud__sub" id="hud-dirstr">--</div></div>
-  </div>
-
-  <div class="sim-toolbar">
-    <button class="sim-toolbar__btn sim-toolbar__btn--aktif" onclick="simNoktaGit('havaalani',this)">✈ Havalimanı</button>
-    <button class="sim-toolbar__btn" onclick="simNoktaGit('davraz',this)">⛰ Davraz</button>
-    <button class="sim-toolbar__btn" onclick="simNoktaGit('egirdir',this)">🌊 Eğirdir Gölü</button>
-    <button class="sim-toolbar__btn" onclick="simNoktaGit('merkez',this)">🏙 Şehir Merkezi</button>
-    <span class="sim-toolbar__sep"></span>
-    <button class="sim-toolbar__btn" onclick="simTamEkran()">⛶ Tam Ekran</button>
-  </div>
-
-  <div class="sim-container-wrapper">
-      <div id="sim-container" tabindex="0"></div>
-      <div class="sim-mobile-controls">
-          <div class="sim-dpad">
-              <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
-              <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
-              <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
-          </div>
-          <div class="sim-dpad" style="grid-template-columns: repeat(1, 46px); grid-template-rows: repeat(2, 42px); margin-top:20px;">
-              <div class="sim-joy-btn" data-key="w" style="border-radius: 6px;">+W</div>
-              <div class="sim-joy-btn" data-key="s" style="border-radius: 6px; margin-top:4px;">-S</div>
-          </div>
-      </div>
-  </div>
-  
-  <p class="sim-hint">⌨️ PC: Çerçeveye tıklayıp W/A/S/D/E/Q ile uçun. Mobil: Ekran butonlarını kullanın.</p>
-  <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
-
-  <div class="sim-controls">
-    <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">✈ Uçuş</div>
-      <div class="sim-ctrl-card__item"><span>Gaz Ver / Fren</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Sola / Sağa Yatış</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
+    <div class="sim-hud">
+        <div class="sim-hud__card">
+            <div class="sim-hud__label">Yükseklik</div>
+            <div class="sim-hud__val" id="hud-alt">-- m</div>
+            <div class="sim-hud__sub">Deniz seviyesinden</div>
+        </div>
+        <div class="sim-hud__card">
+            <div class="sim-hud__label">Hız</div>
+            <div class="sim-hud__val" id="hud-spd">-- km/s</div>
+            <div class="sim-hud__sub">Yatay hız</div>
+        </div>
+        <div class="sim-hud__card">
+            <div class="sim-hud__label">Konum</div>
+            <div class="sim-hud__val" style="font-size:12px;padding-top:4px;" id="hud-pos">--</div>
+            <div class="sim-hud__sub">Enlem / Boylam</div>
+        </div>
+        <div class="sim-hud__card">
+            <div class="sim-hud__label">Yön</div>
+            <div class="sim-hud__val" id="hud-dir">--°</div>
+            <div class="sim-hud__sub" id="hud-dirstr">--</div>
+        </div>
     </div>
-    <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">🎯 Kamera</div>
-      <div class="sim-ctrl-card__item"><span>Bakış açısı</span><span><span class="sim-ctrl-card__key">Fare sürükle</span></span></div>
-      <div class="sim-ctrl-card__item"><span>Zoom</span><span><span class="sim-ctrl-card__key">Kaydırma</span></span></div>
+
+    <div class="sim-toolbar">
+        <button class="sim-toolbar__btn sim-toolbar__btn--aktif" onclick="simNoktaGit('havaalani',this)">✈ Havalimanı</button>
+        <button class="sim-toolbar__btn" onclick="simNoktaGit('davraz',this)">⛰ Davraz</button>
+        <button class="sim-toolbar__btn" onclick="simNoktaGit('egirdir',this)">🌊 Eğirdir Gölü</button>
+        <button class="sim-toolbar__btn" onclick="simNoktaGit('merkez',this)">🏙 Şehir Merkezi</button>
+        <span class="sim-toolbar__sep"></span>
+        <button class="sim-toolbar__btn" onclick="simTamEkran()" id="sim-fs-btn">⛶ Tam Ekran</button>
     </div>
-    <div class="sim-ctrl-card">
-      <div class="sim-ctrl-card__title">📍 Noktalar</div>
-      <div class="sim-ctrl-card__item"><span>Havalimanı</span><span style="color:var(--text3);font-size:11px;">37.855°N</span></div>
-      <div class="sim-ctrl-card__item"><span>Davraz Dağı</span><span style="color:var(--text3);font-size:11px;">37.741°N</span></div>
-      <div class="sim-ctrl-card__item"><span>Eğirdir Gölü</span><span style="color:var(--text3);font-size:11px;">37.874°N</span></div>
+
+    <div style="position:relative; width:100%;">
+        <div id="sim-container" tabindex="0" style="outline:none;cursor:crosshair;"></div>
+        
+        <div class="sim-mobile-controls">
+            <div class="sim-dpad">
+                <div></div><div class="sim-joy-btn" data-key="e">▲</div><div></div>
+                <div class="sim-joy-btn" data-key="a">◀</div><div></div><div class="sim-joy-btn" data-key="d">▶</div>
+                <div></div><div class="sim-joy-btn" data-key="q">▼</div><div></div>
+            </div>
+            <div class="sim-dpad" style="grid-template-columns: repeat(1, 50px); grid-template-rows: repeat(2, 50px); margin-top:24px;">
+                <div class="sim-joy-btn" data-key="w" style="border-radius: 8px;">+ W</div>
+                <div class="sim-joy-btn" data-key="s" style="border-radius: 8px; margin-top:6px;">- S</div>
+            </div>
+        </div>
     </div>
-  </div>
+    
+    <p style="font-size:11px;color:var(--text3);margin:4px 0 0 2px;">⌨️ PC: Haritaya tıklayıp W/A/S/D/E/Q ile uçun. Mobil: Ekran butonlarını kullanın.</p>
+    <button class="sim-fs-close" id="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
+
+    <div class="sim-controls">
+        <div class="sim-ctrl-card">
+            <div class="sim-ctrl-card__title">✈ Uçuş</div>
+            <div class="sim-ctrl-card__item"><span>Gaz Arttır / Azalt</span><span><span class="sim-ctrl-card__key">W</span> / <span class="sim-ctrl-card__key">S</span></span></div>
+            <div class="sim-ctrl-card__item"><span>Sola / Sağa Yatış</span><span><span class="sim-ctrl-card__key">A</span> / <span class="sim-ctrl-card__key">D</span></span></div>
+            <div class="sim-ctrl-card__item"><span>Burun Kaldır / İndir</span><span><span class="sim-ctrl-card__key">E</span> / <span class="sim-ctrl-card__key">Q</span></span></div>
+        </div>
+        <div class="sim-ctrl-card">
+            <div class="sim-ctrl-card__title">🎯 Kamera</div>
+            <div class="sim-ctrl-card__item"><span>Bakış açısı</span><span><span class="sim-ctrl-card__key">Fare sürükle</span></span></div>
+            <div class="sim-ctrl-card__item"><span>Zoom</span><span><span class="sim-ctrl-card__key">Kaydırma</span></span></div>
+        </div>
+        <div class="sim-ctrl-card">
+            <div class="sim-ctrl-card__title">📍 Konum Bilgileri</div>
+            <div class="sim-ctrl-card__item"><span>Havalimanı</span><span style="color:var(--text3);font-size:11px;">37.855°N 30.568°E</span></div>
+            <div class="sim-ctrl-card__item"><span>Davraz Dağı</span><span style="color:var(--text3);font-size:11px;">37.741°N 30.755°E</span></div>
+            <div class="sim-ctrl-card__item"><span>Eğirdir Gölü</span><span style="color:var(--text3);font-size:11px;">37.874°N 30.857°E</span></div>
+        </div>
+    </div>
 
 </div>
 
@@ -167,12 +229,17 @@
 <script>
 (function simBaslat() {
     if (typeof Cesium === 'undefined' || !Cesium.Viewer) {
-        document.getElementById('sim-container').innerHTML = '<div style="color:#fff;text-align:center;padding-top:100px;">⚠️ CesiumJS yüklenemedi.</div>';
+        document.getElementById('sim-container').innerHTML =
+            '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;flex-direction:column;gap:12px;">' +
+            '<span style="font-size:40px;">⚠️</span>' +
+            '<p style="font-size:14px;opacity:.7;">CesiumJS yüklenemedi. Sayfayı yenileyin.</p></div>';
         return;
     }
 
+    /* ── 1. Cesium Token ── */
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
+    /* ── 2. Noktalar (Güvenli İrtifalar) ── */
     var NOKTALAR = {
         havaalani : { lon: 30.5682, lat: 37.8553, alt: 1200 },
         davraz    : { lon: 30.7550, lat: 37.7410, alt: 2800 },
@@ -180,101 +247,154 @@
         merkez    : { lon: 30.5550, lat: 37.7640, alt: 1300 },
     };
 
+    /* ── 3. Viewer Altyapısı ── */
     var viewer = new Cesium.Viewer('sim-container', {
-        baseLayerPicker:false, geocoder:false, homeButton:false, sceneModePicker:false,
-        navigationHelpButton:false, animation:false, timeline:false, fullscreenButton:false,
-        infoBox:false, selectionIndicator:false, shadows:false, shouldAnimate:true
+        baseLayerPicker      : false,
+        geocoder             : false,
+        homeButton           : false,
+        sceneModePicker      : false,
+        navigationHelpButton : false,
+        animation            : false,
+        timeline             : false,
+        fullscreenButton     : false,
+        infoBox              : false,
+        selectionIndicator   : false,
+        shadows              : false,
+        shouldAnimate        : true,
     });
 
-    Cesium.CesiumTerrainProvider.fromIonAssetId(1).then(function(tp) { viewer.terrainProvider = tp; });
+    Cesium.CesiumTerrainProvider.fromIonAssetId(1)
+        .then(function(tp) { viewer.terrainProvider = tp; })
+        .catch(function(err) { console.warn('Terrain Hatası:', err); });
 
-    viewer.scene.skyAtmosphere.show = false; viewer.scene.globe.enableLighting = false; viewer.scene.fog.enabled = false;
-    viewer.scene.globe.maximumScreenSpaceError = 8; viewer.resolutionScale = 0.75;
+    /* Performans Optimizasyonları */
+    viewer.scene.skyAtmosphere.show = false;
+    viewer.scene.globe.enableLighting = false;
+    viewer.scene.fog.enabled = false;
+    viewer.scene.globe.maximumScreenSpaceError = 8; // Mobil performansı için artırıldı
+    viewer.resolutionScale = 0.75;
 
     document.getElementById('sim-container').addEventListener('click', function() { this.focus(); });
 
-    var lon = NOKTALAR.havaalani.lon, lat = NOKTALAR.havaalani.lat, alt = NOKTALAR.havaalani.alt;
+    // Dinamik koordinat takipleri
+    var lon = NOKTALAR.havaalani.lon;
+    var lat = NOKTALAR.havaalani.lat;
+    var alt = NOKTALAR.havaalani.alt;
     var pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
+    // Yeşil Uçak Gösterge Noktası
     viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
-        point    : { pixelSize: 12, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 }
+        point    : { pixelSize: 12, color: Cesium.Color.fromCssColorString('#22c55e'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+        label    : { text: '✈ G32', font: 'bold 12px Arial', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -20) }
     });
 
+    // Başlangıç Kamerası
     viewer.camera.setView({
         destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.006, alt + 120),
         orientation : { heading: 0, pitch: Cesium.Math.toRadians(-12), roll: 0 }
     });
 
-    var mevcutHiz = 90, hedefHiz = 110, minHiz = 30, maxHiz = 320;
-    var heading = 0, pitch = -0.02, roll = 0, tuslar = {};
+    /* ── 4. Havacılık Parametreleri ── */
+    var mevcutHiz = 90; 
+    var hedefHiz = 110;
+    var minHiz = 30;
+    var maxHiz = 320;
+    
+    var heading = 0; 
+    var pitch = -0.02; 
+    var roll = 0;
+    var tuslar = {};
 
+    /* ── 5. PC Klavye Girdileri ── */
     window.addEventListener('keydown', function(e) {
-        var key = e.key.toLowerCase(); tuslar[key] = true;
-        if (['w','a','s','d','q','e'].indexOf(key) > -1) e.preventDefault();
+        var key = e.key.toLowerCase();
+        tuslar[key] = true;
+        if (['w','a','s','d','q','e','+','-','='].indexOf(key) > -1) e.preventDefault();
     });
     window.addEventListener('keyup', function(e) { tuslar[e.key.toLowerCase()] = false; });
 
+    /* ── 6. Mobil Dokunmatik Girdiler ── */
     document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
         var key = btn.getAttribute('data-key');
-        btn.addEventListener('touchstart', function(e) { tuslar[key] = true; e.preventDefault(); }, {passive: false});
-        btn.addEventListener('touchend', function(e) { tuslar[key] = false; e.preventDefault(); }, {passive: false});
+        
+        // Dokunma Başlangıcı
+        btn.addEventListener('touchstart', function(e) {
+            tuslar[key] = true;
+            if(e.cancelable) e.preventDefault();
+        }, {passive: false});
+        
+        // Dokunma Bitişi
+        btn.addEventListener('touchend', function(e) {
+            tuslar[key] = false;
+            if(e.cancelable) e.preventDefault();
+        }, {passive: false});
+
+        // Mouse Desteği (Test Kolaylığı İçin)
+        btn.addEventListener('mousedown', function() { tuslar[key] = true; });
+        btn.addEventListener('mouseup', function() { tuslar[key] = false; });
+        btn.addEventListener('mouseleave', function() { tuslar[key] = false; });
     });
 
-    var oncekiZaman = null, hudSayac = 0;
+    /* ── 7. Pürüzsüz Fizik ve Güncelleme Döngüsü ── */
+    var oncekiZaman = null;
+    var hudSayac = 0;
+
     function lerp(start, end, amt) { return (1 - amt) * start + amt * end; }
 
     viewer.scene.preUpdate.addEventListener(function(scene, zaman) {
         if (!oncekiZaman) { oncekiZaman = zaman; return; }
-        var dt = Math.min((zaman - oncekiZaman) / 1000, 0.1); oncekiZaman = zaman;
+        var dt = Math.min((zaman - oncekiZaman) / 1000, 0.1);
+        oncekiZaman = zaman;
 
+        // Gaz Dinamiği (W / S)
         if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 40 * dt, maxHiz);
         if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 40 * dt, minHiz);
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
 
+        // Yatış / Roll Dinamiği (A / D)
         if (tuslar['a']) roll = lerp(roll, -0.5, 4 * dt);
         else if (tuslar['d']) roll = lerp(roll, 0.5, 4 * dt);
         else roll = lerp(roll, 0, 3 * dt);
 
+        // Burun / Pitch Dinamiği (E / Q)
         if (tuslar['e']) pitch = lerp(pitch, 0.28, 3 * dt);
         else if (tuslar['q']) pitch = lerp(pitch, -0.28, 3 * dt);
         else pitch = lerp(pitch, 0, 2 * dt);
 
+        // Heading Değişimi (Yatış Açı Orantılı Dönüş)
         heading += roll * (mevcutHiz / 120) * dt;
 
-        var cosPitch = Math.cos(pitch), mesafeYatay = mevcutHiz * dt;
+        // Vektörel Koordinat Öteleme
+        var cosPitch = Math.cos(pitch);
+        var mesafeYatay = mevcutHiz * dt;
         
-        // Güvenli koordinat değişimi (NaN / Sıfıra bölünme koruması)
-        var CosLatRad = Math.cos(Cesium.Math.toRadians(lat));
-        if (CosLatRad === 0 || isNaN(CosLatRad)) CosLatRad = 0.0001;
-
-        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * CosLatRad);
+        var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
         var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
-        
-        var yeniLon = lon + Cesium.Math.toDegrees(deltaLon);
-        var yeniLat = lat + Cesium.Math.toDegrees(deltaLat);
-        var yeniAlt = Math.max(alt + Math.sin(pitch) * mesafeYatay, 100);
+        var deltaAlt = Math.sin(pitch) * mesafeYatay;
 
-        // Hata kontrolü: Eğer değer geçerliyse pozisyonu güncelle, NaN ise sistemi çökertme
-        if (!isNaN(yeniLon) && !isNaN(yeniLat) && !isNaN(yeniAlt) && isFinite(yeniLon) && isFinite(yeniLat)) {
-            lon = yeniLon; lat = yeniLat; alt = yeniAlt;
-            pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-        }
+        lon += Cesium.Math.toDegrees(deltaLon);
+        lat += Cesium.Math.toDegrees(deltaLat);
+        alt = Math.max(alt + deltaAlt, 100); 
 
-        var kameraMesafeDerece = 420 / 111000;
-        var hedefKamPitch = Cesium.Math.toRadians(-11) + (pitch * 0.2);
-        
-        // Matris patlamalarını engellemek için pitch değerini sınırla
-        if (hedefKamPitch > 1.5) hedefKamPitch = 1.5;
-        if (hedefKamPitch < -1.5) hedefKamPitch = -1.5;
+        pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 
-        if (!isNaN(lon) && !isNaN(lat)) {
-            viewer.camera.setView({
-                destination : Cesium.Cartesian3.fromDegrees(lon - Math.sin(heading) * kameraMesafeDerece, lat - Math.cos(heading) * kameraMesafeDerece, alt + 120 + (Math.sin(pitch) * 50)),
-                orientation : { heading: heading, pitch: lerp(viewer.camera.pitch, hedefKamPitch, 5 * dt), roll: roll * -0.35 }
-            });
-        }
+        // Kokpit Arkası Sinematik Kamera Takibi
+        var kameraMesafeDerece = 420 / 111000; 
+        var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
+        var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
+        var kamAlt = alt + 120 + (Math.sin(pitch) * 50);
 
+        viewer.camera.setView({
+            destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+            orientation : { 
+                heading: heading, 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-11) + (pitch * 0.2), 5 * dt), 
+                roll: roll * -0.35 
+            }
+        });
+
+        // HUD Bilgileri (Performans için 10 adımda bir)
         hudSayac++;
         if (hudSayac % 10 === 0) {
             var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
@@ -287,22 +407,36 @@
         }
     });
 
+    /* ── 8. Konum Değiştirme Butonları ── */
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
-        lon = n.lon; lat = n.lat; alt = n.alt; heading = 0; pitch = -0.02; roll = 0; hedefHiz = 110; mevcutHiz = 90;
+        lon = n.lon; lat = n.lat; alt = n.alt;
+        heading = 0; pitch = -0.02; roll = 0;
+        hedefHiz = 110; mevcutHiz = 90;
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-        viewer.camera.flyTo({ destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.008, alt + 300), orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 }, duration : 2 });
+        
+        viewer.camera.flyTo({
+            destination : Cesium.Cartesian3.fromDegrees(lon, lat - 0.008, alt + 300),
+            orientation : { heading: 0, pitch: Cesium.Math.toRadians(-15), roll: 0 },
+            duration    : 2,
+        });
         document.querySelectorAll('.sim-toolbar__btn').forEach(function(b) { b.classList.remove('sim-toolbar__btn--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__btn--aktif');
     };
 
+    /* ── 9. Geliştirilmiş Tam Ekran Yönetimi ── */
     var tamEkranAcik = false;
     window.simTamEkran = function() {
         tamEkranAcik = !tamEkranAcik;
-        document.body.classList.toggle('sim-fullscreen', tamEkranAcik);
-        viewer.resize();
+        document.getElementById('sim-main-wrapper').classList.toggle('sim-fullscreen', tamEkranAcik);
+        document.body.style.overflow = tamEkranAcik ? 'hidden' : '';
+        
+        // Mobil tarayıcılarda tam ekran açıldığında harita boyutlarını zorla yenile
+        setTimeout(function() { viewer.resize(); }, 150);
     };
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && tamEkranAcik) simTamEkran(); });
+
 })();
 </script>
-</body>
-</html>
+
+<?php get_footer(); ?>
