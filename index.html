@@ -15,7 +15,7 @@
   }
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
-    overflow: hidden; /* Iframe içi dikey/yatay barları tamamen kapatır */
+    overflow: hidden; /* Iframe içi kaydırma çubuklarını tamamen kapatır */
   }
   body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
   
@@ -67,18 +67,14 @@
                   font-weight:600; cursor:pointer; display:none; }
   .sim-fullscreen .sim-fs-close { display:block; }
 
-  /* ── MOBİL D-PAD BUTON STILLERI ── */
+  /* Mobil Kontroller */
   .sim-mobile-controls {
       position: absolute; bottom: 20px; left: 0; right: 0;
       display: none; justify-content: space-between; padding: 0 15px;
       z-index: 999; pointer-events: none;
   }
   .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
-  
-  /* Sadece dokunmatik veya küçük ekranlarda d-pad katmanını göster */
-  @media (max-width: 1024px) { 
-      .sim-mobile-controls { display: flex; } 
-  }
+  @media (max-width: 1024px) { .sim-mobile-controls { display: flex; } }
 
   .sim-dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; pointer-events: auto; }
   .sim-joy-btn {
@@ -219,7 +215,6 @@
     });
     window.addEventListener('keyup', function(e) { tuslar[e.key.toLowerCase()] = false; });
 
-    /* ── MOBİL DOKUNMATİK OLAY DİNLEYİCİLERİ KODA EKLENDİ ── */
     document.querySelectorAll('.sim-joy-btn').forEach(function(btn) {
         var key = btn.getAttribute('data-key');
         btn.addEventListener('touchstart', function(e) { tuslar[key] = true; e.preventDefault(); }, {passive: false});
@@ -247,10 +242,14 @@
 
         heading += roll * (mevcutHiz / 120) * dt;
 
+        // ── RADYAN / DERECE KORUMA VE EMNİYET KİLİDİ ──
+        // Heading değerini sürekli 0 ile 2*PI (radyan) arasında tutarak hafıza taşmasını ve NaN üretimini engelliyoruz
+        heading = (heading % (Math.PI * 2) + (Math.PI * 2)) % (Math.PI * 2);
+
         var cosPitch = Math.cos(pitch), mesafeYatay = mevcutHiz * dt;
         
         var CosLatRad = Math.cos(Cesium.Math.toRadians(lat));
-        if (CosLatRad === 0 || isNaN(CosLatRad)) CosLatRad = 0.0001;
+        if (CosLatRad === 0 || isNaN(CosLatRad) || !isFinite(CosLatRad)) CosLatRad = 0.0001;
 
         var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * CosLatRad);
         var deltaLat = (Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
@@ -259,7 +258,7 @@
         var yeniLat = lat + Cesium.Math.toDegrees(deltaLat);
         var yeniAlt = Math.max(alt + Math.sin(pitch) * mesafeYatay, 100);
 
-        /* Hata ve Kilitlenme Koruması */
+        // Değerler tamamen sayısal olarak doğrulanmadan ana koordinat dizilerine gönderilmiyor
         if (!isNaN(yeniLon) && !isNaN(yeniLat) && !isNaN(yeniAlt) && isFinite(yeniLon) && isFinite(yeniLat)) {
             lon = yeniLon; lat = yeniLat; alt = yeniAlt;
             pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
@@ -268,14 +267,25 @@
         var kameraMesafeDerece = 420 / 111000;
         var hedefKamPitch = Cesium.Math.toRadians(-11) + (pitch * 0.2);
         
-        if (hedefKamPitch > 1.5) hedefKamPitch = 1.5;
-        if (hedefKamPitch < -1.5) hedefKamPitch = -1.5;
+        // Kamera matrisinin kırılmasını önleyen sınırlama
+        if (hedefKamPitch > 1.4) hedefKamPitch = 1.4;
+        if (hedefKamPitch < -1.4) hedefKamPitch = -1.4;
 
-        if (!isNaN(lon) && !isNaN(lat)) {
-            viewer.camera.setView({
-                destination : Cesium.Cartesian3.fromDegrees(lon - Math.sin(heading) * kameraMesafeDerece, lat - Math.cos(heading) * kameraMesafeDerece, alt + 120 + (Math.sin(pitch) * 50)),
-                orientation : { heading: heading, pitch: lerp(viewer.camera.pitch, hedefKamPitch, 5 * dt), roll: roll * -0.35 }
-            });
+        if (!isNaN(lon) && !isNaN(lat) && isFinite(lon) && isFinite(lat)) {
+            var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
+            var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
+            var kamAlt = alt + 120 + (Math.sin(pitch) * 50);
+
+            if (!isNaN(kamLon) && !isNaN(kamLat) && !isNaN(kamAlt)) {
+                viewer.camera.setView({
+                    destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
+                    orientation : { 
+                        heading: heading, // Artık her zaman güvenli radyan aralığında
+                        pitch: lerp(viewer.camera.pitch, hedefKamPitch, 5 * dt), 
+                        roll: roll * -0.35 
+                    }
+                });
+            }
         }
 
         hudSayac++;
