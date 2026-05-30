@@ -227,7 +227,7 @@
     viewer.scene.globe.maximumScreenSpaceError = 8;
     viewer.resolutionScale                     = 0.85; 
 
-    // Fare sürüklemelerini tamamen bloke ediyoruz ki kamerayı yerinden oynatıp uçağı kaybetmesinler
+    // Fare sürüklemelerini iptal ediyoruz (Kamera uçağa çivili kalacak)
     viewer.scene.screenSpaceCameraController.enableRotate = false;
     viewer.scene.screenSpaceCameraController.enableTranslate = false;
     viewer.scene.screenSpaceCameraController.enableZoom = false;
@@ -245,22 +245,59 @@
     var hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
     var oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
-    // Yeşil yön oku/piramidi
-    var ucakEntity = viewer.entities.add({
+    // 🌟 3D GEOMETRİK UÇAK MODELİ (Yerelde Hata Vermez, Harici Dosya İndirmez)
+    var ucakKonteyner = viewer.entities.add({
         position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
         orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
-        cylinder : {
-            length : 20.0,
-            topRadius : 0.0,
-            bottomRadius : 6.0,
-            material : Cesium.Color.fromCssColorString('#22c55e')
-        },
         label : { 
             text: '✈ Gazete32', font: 'bold 12px sans-serif', fillColor: Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             pixelOffset: new Cesium.Cartesian2(0, -35)
-        },
+        }
+    });
+
+    // 1. Uçak Gövdesi (Ana Gövde)
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
+        cylinder : {
+            length : 24.0, topRadius : 0.8, bottomRadius : 1.5,
+            material : Cesium.Color.fromCssColorString('#3b82f6') // Şık Mavi Gövde
+        }
+    });
+
+    // 2. Büyük Kanatlar (Sağ ve Sol Kanat Alanı)
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        position : new Cesium.CallbackProperty(function() { return pozisyon; }, false),
+        orientation : new Cesium.CallbackProperty(function() { 
+            // Kanadı gövdeye yatay monte etmek için 90 derece döndürüyoruz
+            var kanatHpr = new Cesium.HeadingPitchRoll(heading, pitch, roll + Cesium.Math.toRadians(90));
+            return Cesium.Transforms.headingPitchRollQuaternion(pozisyon, kanatHpr);
+        }, false),
+        box : {
+            dimensions : new Cesium.Cartesian3(1.2, 26.0, 4.0), // 26 Metre Kanat Genişliği
+            material : Cesium.Color.fromCssColorString('#ef4444') // Kırmızı Kanatlar
+        }
+    });
+
+    // 3. Arka Kuyruk Kanadı (Dikey Stabilize)
+    viewer.entities.add({
+        parent : ucakKonteyner,
+        position : new Cesium.CallbackProperty(function() { 
+            // Kuyruğu biraz arkaya kaydırıyoruz
+            var kuyrukMesafe = -10 / 111000;
+            var kLon = lon - Math.sin(heading) * kuyrukMesafe;
+            var kLat = lat - Math.cos(heading) * kuyrukMesafe;
+            return Cesium.Cartesian3.fromDegrees(kLon, kLat, alt + 2);
+        }, false),
+        orientation : new Cesium.CallbackProperty(function() { return oryantasyon; }, false),
+        box : {
+            dimensions : new Cesium.Cartesian3(4.0, 0.4, 5.0),
+            material : Cesium.Color.fromCssColorString('#f59e0b') // Turuncu Kuyruk
+        }
     });
 
     var mevcutHiz = 90;       
@@ -337,24 +374,23 @@
 
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         
-        // Piramit varlığının uçuş ekseninde pürüzsüz dönmesi için oryantasyon güncellemesi
+        // Gövde silindir olduğu için dikey eksenden yatay uçuş eksenine 90 derece yatırıyoruz
         hpr.heading = heading;
         hpr.pitch = pitch + Cesium.Math.toRadians(90); 
         hpr.roll = roll;
         oryantasyon = Cesium.Transforms.headingPitchRollQuaternion(pozisyon, hpr);
 
-        // 🌟 MATEMATİKSEL KAMERA KİLİTLEME (ÇİVİ GİBİ TAKİP)
-        // Kamerayı uçağın tam 180 metre arkasına ve 40 metre yukarısına çiviliyoruz
-        var kameraMesafeDerece = 180 / 111000; 
+        // Kameranın uçağı 190 metre arkadan ve 45 metre yukarıdan temiz takip etmesi
+        var kameraMesafeDerece = 190 / 111000; 
         var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
         var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
-        var kamAlt = alt + 40 + (Math.sin(pitch) * 30);
+        var kamAlt = alt + 45 + (Math.sin(pitch) * 30);
 
         viewer.camera.setView({
             destination : Cesium.Cartesian3.fromDegrees(kamLon, kamLat, kamAlt),
             orientation : { 
                 heading: heading, 
-                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-10) + (pitch * 0.15), 6 * dt), 
+                pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-12) + (pitch * 0.15), 6 * dt), 
                 roll: roll * -0.2 
             }
         });
