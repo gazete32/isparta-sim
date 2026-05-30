@@ -233,47 +233,62 @@
         el.addEventListener('keyup', function(e) { tuslar[e.key.toLowerCase()] = false; });
     });
 
-    var oncekiZaman = null;
-    viewer.scene.preUpdate.addEventListener(function(scene, zaman) {
-        if (!oncekiZaman) { oncekiZaman = zaman; return; }
-        var dt = Math.min((zaman - oncekiZaman) / 1000, 0.1);
-        oncekiZaman = zaman;
+    /* ── Güncelleme döngüsü — throttled, 20fps yeterli ── */
+    var oncekiZaman = Date.now();
+    var hudSayac = 0;
 
-        if (tuslar['+'] || tuslar['=']) hiz = Math.min(hiz + 20, 2000);
-        if (tuslar['-'])                hiz = Math.max(hiz - 20, 20);
-        if (tuslar['a']) heading -= 0.8 * dt;
-        if (tuslar['d']) heading += 0.8 * dt;
-        if (tuslar['e']) pitch = Math.min(pitch + 0.5 * dt,  1.0);
-        if (tuslar['q']) pitch = Math.max(pitch - 0.5 * dt, -1.0);
+    function guncelle() {
+        var simdi = Date.now();
+        var dt = Math.min((simdi - oncekiZaman) / 1000, 0.1);
+        oncekiZaman = simdi;
 
-        if (tuslar['w'] || tuslar['s']) {
-            var c  = Cesium.Cartographic.fromCartesian(pozisyon);
-            var yc = tuslar['w'] ? 1 : -1;
-            pozisyon = Cesium.Cartesian3.fromRadians(
-                c.longitude + (-Math.sin(heading) * Math.cos(pitch)) * (hiz * dt) / (6371000 * Math.cos(c.latitude)),
-                c.latitude  + ( Math.cos(heading) * Math.cos(pitch)) * (hiz * dt) / 6371000,
-                Math.max(c.height + Math.sin(pitch) * (hiz * dt) * yc, 100)
-            );
+        var hareket = tuslar['w'] || tuslar['s'] || tuslar['a'] || tuslar['d'] ||
+                      tuslar['e'] || tuslar['q'] || tuslar['+'] || tuslar['='] || tuslar['-'];
+
+        if (hareket) {
+            if (tuslar['+'] || tuslar['=']) hiz = Math.min(hiz + 20, 2000);
+            if (tuslar['-'])                hiz = Math.max(hiz - 20, 20);
+            if (tuslar['a']) heading -= 0.8 * dt;
+            if (tuslar['d']) heading += 0.8 * dt;
+            if (tuslar['e']) pitch = Math.min(pitch + 0.5 * dt,  1.0);
+            if (tuslar['q']) pitch = Math.max(pitch - 0.5 * dt, -1.0);
+
+            if (tuslar['w'] || tuslar['s']) {
+                var c  = Cesium.Cartographic.fromCartesian(pozisyon);
+                var yc = tuslar['w'] ? 1 : -1;
+                pozisyon = Cesium.Cartesian3.fromRadians(
+                    c.longitude + (-Math.sin(heading) * Math.cos(pitch)) * (hiz * dt) / (6371000 * Math.cos(c.latitude)),
+                    c.latitude  + ( Math.cos(heading) * Math.cos(pitch)) * (hiz * dt) / 6371000,
+                    Math.max(c.height + Math.sin(pitch) * (hiz * dt) * yc, 100)
+                );
+            }
+
+            var k = Cesium.Cartographic.fromCartesian(pozisyon);
+            viewer.camera.setView({
+                destination : Cesium.Cartesian3.fromDegrees(
+                    Cesium.Math.toDegrees(k.longitude) - Math.sin(heading) * (500 / 111000),
+                    Cesium.Math.toDegrees(k.latitude)  - Math.cos(heading) * (500 / 111000),
+                    k.height + 200
+                ),
+                orientation : { heading: heading, pitch: Cesium.Math.toRadians(-15), roll: 0 },
+            });
+
+            /* HUD her 5 frame'de bir güncelle */
+            hudSayac++;
+            if (hudSayac % 5 === 0) {
+                var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
+                var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
+                document.getElementById('hud-alt').textContent    = Math.round(k.height).toLocaleString() + ' m';
+                document.getElementById('hud-spd').textContent    = Math.round(hiz * 3.6) + ' km/s';
+                document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(k.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(k.longitude).toFixed(4) + '°E';
+                document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
+                document.getElementById('hud-dirstr').textContent = yonStr;
+            }
         }
 
-        var k = Cesium.Cartographic.fromCartesian(pozisyon);
-        viewer.camera.setView({
-            destination : Cesium.Cartesian3.fromDegrees(
-                Cesium.Math.toDegrees(k.longitude) - Math.sin(heading) * (500 / 111000),
-                Cesium.Math.toDegrees(k.latitude)  - Math.cos(heading) * (500 / 111000),
-                k.height + 200
-            ),
-            orientation : { heading: heading, pitch: Cesium.Math.toRadians(-15), roll: 0 },
-        });
-
-        var deg = ((Cesium.Math.toDegrees(heading) % 360) + 360) % 360;
-        var yonStr = ['K','KKD','KD','DKD','D','DGD','GD','GGD','G','GGB','GB','BGB','B','BBK','KB','KKB'][Math.round(deg/22.5)%16];
-        document.getElementById('hud-alt').textContent    = Math.round(k.height).toLocaleString() + ' m';
-        document.getElementById('hud-spd').textContent    = Math.round(hiz * 3.6) + ' km/s';
-        document.getElementById('hud-pos').textContent    = Cesium.Math.toDegrees(k.latitude).toFixed(4) + '°N, ' + Cesium.Math.toDegrees(k.longitude).toFixed(4) + '°E';
-        document.getElementById('hud-dir').textContent    = Math.round(deg) + '°';
-        document.getElementById('hud-dirstr').textContent = yonStr;
-    });
+        setTimeout(guncelle, 50); /* 20fps */
+    }
+    guncelle();
 
     window.simNoktaGit = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
