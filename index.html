@@ -201,14 +201,14 @@
     </div>
     <span class="sim-toolbar__sep"></span>
     <!-- Kamera modu -->
-    <button class="sim-toolbar__btn" id="cam-toggle-btn" onclick="camToggle()">👁 1. Şahıs</button>
+    <button class="sim-toolbar__btn" id="cam-toggle-btn" onclick="camToggle()">🛬 Alçak Uçuş</button>
     <button class="sim-toolbar__btn" onclick="simTamEkran()">⛶ Tam Ekran</button>
   </div>
 
   <div class="sim-container-wrapper">
     <div id="sim-container" tabindex="0"></div>
     <!-- Sim içi kamera modu göstergesi -->
-    <div class="sim-cam-overlay" id="cam-overlay">🎥 3. Şahıs</div>
+    <div class="sim-cam-overlay" id="cam-overlay">🎥 Normal Görünüm</div>
 
     <div class="sim-mobile-controls">
       <div class="sim-dpad">
@@ -223,7 +223,7 @@
     </div>
   </div>
 
-  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla · <b>A/D</b> Dön · <b>E/Q</b> Yüksel/Alçal · <b>V</b> Kamera Değiştir</p>
+  <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla · <b>A/D</b> Dön · <b>E/Q</b> Yüksel/Alçal · <b>V</b> Alçak Uçuş Modu</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
   <!-- OTOPİLOT BARI -->
@@ -254,14 +254,14 @@
     </div>
     <div class="sim-ctrl-card">
       <div class="sim-ctrl-card__title">🎥 Kamera</div>
-      <div class="sim-ctrl-card__item"><span>3. Şahıs / 1. Şahıs</span><span><span class="sim-ctrl-card__key">V</span></span></div>
+      <div class="sim-ctrl-card__item"><span>Normal / Alçak Uçuş</span><span><span class="sim-ctrl-card__key">V</span></span></div>
       <div class="sim-ctrl-card__item"><span>Başlangıç noktası</span><span><span class="sim-ctrl-card__key">Sekme</span></span></div>
       <div class="sim-ctrl-card__item"><span>Tam ekran</span><span><span class="sim-ctrl-card__key">⛶</span></span></div>
     </div>
   </div>
 
   <div class="sim-footer">
-    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta Uçuş Simülatörü - Geliştiren : Afşın Topçu
+    <a href="https://www.gazete32.com.tr" target="_top">gazete32.com.tr</a> · Isparta Uçuş Simülatörü - Geliştiren: Afşın Topçu
   </div>
 
 </div>
@@ -365,7 +365,7 @@
     var minHiz = 40, maxHiz = 250;
 
     /* ── KAMERA MODU ── */
-    /* 0 = 3. şahıs (arkadan), 1 = 1. şahıs (burun/kokpit) */
+    /* 0 = Normal (arkadan takip), 1 = Alçak uçuş (zemine yakın, önden geniş açı) */
     var camMod = 0;
 
     window.camToggle = function() {
@@ -373,13 +373,15 @@
         var btn = document.getElementById('cam-toggle-btn');
         var overlay = document.getElementById('cam-overlay');
         if (camMod === 1) {
-            btn.textContent = '🎥 3. Şahıs';
+            btn.textContent = '🎥 Normal Görünüm';
             btn.classList.add('sim-toolbar__btn--aktif');
-            overlay.textContent = '👁 1. Şahıs (Kokpit)';
+            overlay.textContent = '🛬 Alçak Uçuş Modu';
+            /* Alçak uçuşta yüksekliği otomatik düşür */
+            if (alt > 1300) { alt = 1300; }
         } else {
-            btn.textContent = '👁 1. Şahıs';
+            btn.textContent = '🛬 Alçak Uçuş';
             btn.classList.remove('sim-toolbar__btn--aktif');
-            overlay.textContent = '🎥 3. Şahıs';
+            overlay.textContent = '🎥 Normal Görünüm';
         }
     };
 
@@ -565,7 +567,7 @@
 
         /* ── KAMERA GÜNCELLEME ── */
         if (camMod === 0) {
-            /* 3. Şahıs: arkadan takip */
+            /* Normal: arkadan takip */
             var kameraMesafeDerece = 55 / 111000;
             var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
             var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
@@ -575,21 +577,25 @@
                 orientation: { heading:heading, pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8)+(pitch*0.15), 6*dt), roll: roll*-0.1 }
             });
         } else {
-            /* 1. Şahıs: uçağın burnundan kokpit görünümü */
-            /* Uçağın yönündeki birim vektörünü hesapla, biraz önüne koy */
-            var burunOffset = 14; /* metre — uçağın burnunun uçtan mesafesi */
-            var burunMesafeDerece = burunOffset / 111000;
-            var kamLon1 = lon + Math.sin(heading) * burunMesafeDerece;
-            var kamLat1 = lat + Math.cos(heading) * burunMesafeDerece;
-            var kamAlt1 = alt + Math.sin(pitch) * burunOffset - 1;
+            /* Alçak Uçuş: kamera uçağın çok gerisinde ve çok alçakta,
+               neredeyse zemin seviyesinden öne bakıyor — süzülme hissi */
+            var alcakGeriMesafe = 120 / 111000; /* uçağın 120m gerisinde */
+            var kamLon2 = lon - Math.sin(heading) * alcakGeriMesafe;
+            var kamLat2 = lat - Math.cos(heading) * alcakGeriMesafe;
+            /* Kamera uçaktan sadece 8-15m yukarıda — neredeyse zemin hizasında */
+            var kamAlt2 = alt - 5 + Math.sin(pitch) * 8;
+            /* Hafif aşağı bakan açı — arazinin önümüzde uzandığı hissi */
+            var alcakPitch = Cesium.Math.toRadians(-4) + pitch * 0.4;
             viewer.camera.setView({
-                destination: Cesium.Cartesian3.fromDegrees(kamLon1, kamLat1, kamAlt1),
+                destination: Cesium.Cartesian3.fromDegrees(kamLon2, kamLat2, kamAlt2),
                 orientation: {
                     heading: heading,
-                    pitch: pitch - Cesium.Math.toRadians(3),
-                    roll: roll
+                    pitch: lerp(viewer.camera.pitch, alcakPitch, 5*dt),
+                    roll: roll * 0.3
                 }
             });
+            /* Alçak uçuşta minimum yüksekliği kısıtla — çok alçalmayı engelle */
+            if (!autoAktif) alt = Math.max(alt, 1150);
         }
 
         hudSayac++;
