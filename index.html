@@ -37,72 +37,113 @@
   .sim-hud__sub   { font-size:11px; color:var(--text3); margin-top:2px; }
 
   /* ── TOOLBAR ── */
-  .sim-toolbar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
+  .sim-toolbar {
+    display:flex; gap:6px; align-items:center; margin-bottom:.8rem;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE */
+    flex-wrap: nowrap; /* MOBİL: alt satıra taşımasın */
+  }
+  .sim-toolbar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
   /* Başlangıç noktası sekmeleri */
-  .sim-toolbar__group { display:flex; gap:0; background:var(--bg2); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-  .sim-toolbar__tab { display:inline-flex; align-items:center; gap:5px;
-                      font-size:12px; font-weight:600; padding:7px 13px;
-                      border:none; border-right:1px solid var(--border);
-                      background:transparent; color:var(--text3);
-                      cursor:pointer; transition:background .15s, color .15s; white-space:nowrap; }
+  .sim-toolbar__group {
+    display:flex; gap:0; background:var(--bg2); border:1px solid var(--border);
+    border-radius:8px; overflow:hidden;
+    flex-shrink: 0; /* Küçülmesin, kaydır */
+  }
+  .sim-toolbar__tab {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:12px; font-weight:600; padding:7px 13px;
+    border:none; border-right:1px solid var(--border);
+    background:transparent; color:var(--text3);
+    cursor:pointer; transition:background .15s, color .15s;
+    white-space:nowrap; /* Kesinlikle wrap etme */
+    flex-shrink: 0;
+  }
   .sim-toolbar__tab:last-child { border-right:none; }
   .sim-toolbar__tab:hover { background:var(--bg3); color:var(--text); }
   .sim-toolbar__tab--aktif { background:#1a2535; color:#fff; border-bottom: 2px solid var(--primary); }
 
-  .sim-toolbar__sep { flex:1; }
+  .sim-toolbar__sep { flex:1; min-width: 6px; }
   /* Kamera modu butonu */
-  .sim-toolbar__btn { display:inline-flex; align-items:center; gap:5px;
-                      font-size:12px; font-weight:600; padding:7px 14px;
-                      border-radius:6px; border:1px solid var(--border);
-                      background:var(--bg2); color:var(--text);
-                      cursor:pointer; transition:background .15s; white-space:nowrap; }
+  .sim-toolbar__btn {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:12px; font-weight:600; padding:7px 14px;
+    border-radius:6px; border:1px solid var(--border);
+    background:var(--bg2); color:var(--text);
+    cursor:pointer; transition:background .15s;
+    white-space:nowrap; flex-shrink: 0;
+  }
   .sim-toolbar__btn:hover { background:var(--bg3); }
   .sim-toolbar__btn--aktif { background:#1a2535; border-color:#3b82f6; color:#60a5fa; }
 
-  /* Kamera modu etiketi */
-  .cam-badge { display:inline-flex; align-items:center; gap:5px;
-               font-size:11px; font-weight:700; padding:5px 11px;
-               border-radius:6px; background:#0f1f30; border:1px solid #1e3a5f;
-               color:#60a5fa; }
-
   .sim-container-wrapper { position: relative; width: 100%; }
 
-  #sim-container { width:100%; height:560px; border-radius:8px; overflow:hidden;
-                   border:1px solid var(--border); position:relative;
-                   background:#0d1b2a; outline:none; cursor:crosshair; }
+  #sim-container {
+    width:100%; height:560px; border-radius:8px; overflow:hidden;
+    border:1px solid var(--border); position:relative;
+    background:#0d1b2a; outline:none; cursor:crosshair;
+  }
   @media(max-width:600px){ #sim-container { height:380px; } }
 
-  .sim-fullscreen #sim-container { position:fixed; inset:0; z-index:9999; height:100vh; border-radius:0; border:none; }
-  .sim-fs-close { position:fixed; top:14px; right:14px; z-index:10000;
-                  background:rgba(0,0,0,.7); color:#fff; border:none;
-                  border-radius:6px; padding:8px 16px; font-size:13px;
-                  font-weight:600; cursor:pointer; display:none; }
-  .sim-fullscreen .sim-fs-close { display:block; }
-
-  /* Ekran üstü kamera modu göstergesi (sim içinde) */
-  .sim-cam-overlay {
-      position:absolute; top:12px; left:12px; z-index:100;
-      background:rgba(0,0,0,.6); color:#60a5fa;
-      font-size:11px; font-weight:700; padding:5px 10px;
-      border-radius:6px; border:1px solid #1e3a5f;
-      pointer-events:none;
+  /* ── TAM EKRAN: Sadece wrapper'ı fixed yap, viewer içini doldursun ── */
+  body.sim-fullscreen { overflow: hidden; }
+  body.sim-fullscreen .sim-container-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* Mobil adres çubuğunu hesaba katar */
+    background: #0d1b2a;
   }
-  .sim-fullscreen .sim-cam-overlay { position:fixed; top:14px; left:14px; z-index:10001; }
+  body.sim-fullscreen #sim-container {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+    border: none;
+  }
+  /* Tam ekranda CesiumJS canvas'ını da zorla */
+  body.sim-fullscreen #sim-container .cesium-widget,
+  body.sim-fullscreen #sim-container .cesium-widget canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .sim-fs-close {
+    position: fixed; top: 14px; right: 14px; z-index: 10000;
+    background: rgba(0,0,0,.75); color: #fff; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 6px; padding: 8px 16px; font-size: 13px;
+    font-weight: 600; cursor: pointer; display: none;
+    backdrop-filter: blur(4px);
+  }
+  body.sim-fullscreen .sim-fs-close { display: block; }
+
+  /* Ekran üstü kamera modu göstergesi */
+  .sim-cam-overlay {
+    position:absolute; top:12px; left:12px; z-index:100;
+    background:rgba(0,0,0,.6); color:#60a5fa;
+    font-size:11px; font-weight:700; padding:5px 10px;
+    border-radius:6px; border:1px solid #1e3a5f;
+    pointer-events:none;
+  }
+  body.sim-fullscreen .sim-cam-overlay { position:fixed; top:14px; left:14px; z-index:10001; }
 
   .sim-mobile-controls {
-      position: absolute; bottom: 20px; left: 0; right: 0;
-      display: none; justify-content: space-between; padding: 0 15px;
-      z-index: 999; pointer-events: none;
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: none; justify-content: space-between; padding: 0 15px;
+    z-index: 999; pointer-events: none;
   }
-  .sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
+  body.sim-fullscreen .sim-mobile-controls { position: fixed; bottom: 20px; z-index: 10001; }
   @media (max-width: 1024px) { .sim-mobile-controls { display: flex; } }
 
   .sim-dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 42px); gap: 4px; pointer-events: auto; }
   .sim-joy-btn {
-      background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.4);
-      color: #fff; border-radius: 50%; font-size: 14px; font-weight: bold;
-      display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; cursor: pointer;
+    background: rgba(31, 41, 55, 0.85); border: 1px solid rgba(156, 163, 175, 0.4);
+    color: #fff; border-radius: 50%; font-size: 14px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; cursor: pointer;
   }
   .sim-joy-btn:active { background: #3b82f6; border-color: #3b82f6; }
 
@@ -117,7 +158,6 @@
                           border-radius:4px; padding:1px 7px; font-family:monospace;
                           font-size:11px; color:var(--text); }
 
-  /* OTOPİLOT BARI */
   .auto-bar { display:flex; align-items:center; gap:8px; margin-top:8px;
               background:var(--bg2); border:1px solid var(--border);
               border-radius:8px; padding:.5rem .9rem; font-size:12px; }
@@ -130,8 +170,7 @@
                     border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; white-space:nowrap; }
   .auto-bar__btn:hover { background:var(--bg3); color:var(--text); }
 
-  /* YER LİSTESİ */
-  .yer-baslik { font-size:13px; font-weight:700; color:var(--text); margin: 1rem 0 .5rem; 
+  .yer-baslik { font-size:13px; font-weight:700; color:var(--text); margin: 1rem 0 .5rem;
                 padding-bottom:.4rem; border-bottom:1px solid var(--border); }
   .yer-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:8px; margin-bottom:1rem; }
   .yer-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px;
@@ -190,9 +229,7 @@
     </div>
   </div>
 
-  <!-- TOOLBAR: Başlangıç sekmeleri + kamera modu -->
   <div class="sim-toolbar">
-    <!-- Başlangıç noktası sekmeleri -->
     <div class="sim-toolbar__group">
       <button class="sim-toolbar__tab sim-toolbar__tab--aktif" id="tab-havaalani" onclick="simTeleport('havaalani',this)">✈ Havalimanı</button>
       <button class="sim-toolbar__tab" id="tab-davraz" onclick="simTeleport('davraz',this)">⛰ Davraz</button>
@@ -200,14 +237,12 @@
       <button class="sim-toolbar__tab" id="tab-merkez" onclick="simTeleport('merkez',this)">🏙 Şehir Merkezi</button>
     </div>
     <span class="sim-toolbar__sep"></span>
-    <!-- Kamera modu -->
     <button class="sim-toolbar__btn" id="cam-toggle-btn" onclick="camToggle()">👁 1. Şahıs</button>
     <button class="sim-toolbar__btn" onclick="simTamEkran()">⛶ Tam Ekran</button>
   </div>
 
-  <div class="sim-container-wrapper">
+  <div class="sim-container-wrapper" id="sim-wrapper">
     <div id="sim-container" tabindex="0"></div>
-    <!-- Sim içi kamera modu göstergesi -->
     <div class="sim-cam-overlay" id="cam-overlay">🎥 3. Şahıs</div>
 
     <div class="sim-mobile-controls">
@@ -226,7 +261,6 @@
   <p class="sim-hint">⌨️ Haritaya tıklayın. <b>W/S</b> Hızlan/Yavaşla · <b>A/D</b> Dön · <b>E/Q</b> Yüksel/Alçal · <b>V</b> Kamera Değiştir</p>
   <button class="sim-fs-close" onclick="simTamEkran()">✕ Kapat</button>
 
-  <!-- OTOPİLOT BARI -->
   <div class="auto-bar">
     <span class="auto-bar__ico">🤖</span>
     <span class="auto-bar__lbl">Otopilot:</span>
@@ -235,7 +269,6 @@
     <button class="auto-bar__btn" id="auto-btn" onclick="autoToggle()">▶ Başlat</button>
   </div>
 
-  <!-- TARİHİ YERLER + İLÇELER -->
   <div class="yer-baslik">📍 Isparta'yı Keşfet — Otopilot Hedefleri</div>
   <div class="yer-grid" id="yer-grid"></div>
 
@@ -279,14 +312,11 @@
 
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjM2NzgzYy0yMzljLTQ5YzItODUxZS1iOTRkNzI0ZThlYjciLCJpZCI6NDM4MjIyLCJzdWIiOiJhZnNpbnRvcGN1IiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6ImdhemV0ZTMyIiwiaWF0IjoxNzgwMTQwNzg4fQ.l6uXsLGxsglFFEEqOKPflvVUmBvGD-tqknxRMDzphsE';
 
-    /* ── TÜM NOKTALAR ── */
     var NOKTALAR = {
-        /* Toolbar / Başlangıç noktaları */
         havaalani  : { ad:'Havalimanı',            icon:'✈',  lon:30.5682, lat:37.8553, alt:1400 },
         davraz     : { ad:'Davraz Dağı',            icon:'⛰', lon:30.7550, lat:37.7410, alt:2800 },
         egirdir    : { ad:'Eğirdir Gölü',           icon:'🌊', lon:30.8570, lat:37.8740, alt:1800 },
         merkez     : { ad:'Isparta Merkezi',        icon:'🏙', lon:30.5550, lat:37.7640, alt:1500 },
-        /* Tarihi / doğal yerler (otopilot) */
         sagalassos : { ad:'Sagalassos Antik Kenti', icon:'🏺', lon:30.5200, lat:37.6800, alt:2200, desc:'MÖ 1200\'den kalma Toros Dağları\'ndaki muhteşem antik kent.', tip:'Tarihi' },
         egirdir_k  : { ad:'Eğirdir Kalesi',         icon:'🏰', lon:30.8560, lat:37.8760, alt:1600, desc:'Selçuklu dönemine ait, göl kenarında konumlanan tarihi kale.', tip:'Tarihi' },
         kaymakam   : { ad:'Kaymakkapı Meydanı',     icon:'🏛️', lon:30.5540, lat:37.7642, alt:1300, desc:'Şehir merkezinin buluşma noktası.', tip:'Merkez' },
@@ -295,7 +325,6 @@
         kovada     : { ad:'Kovada Gölü Milli Parkı', icon:'🌲', lon:30.9200, lat:37.7100, alt:2000, desc:'Türkiye\'nin ilk milli parklarından, saf doğasıyla ünlü.', tip:'Doğa' },
         golcuk     : { ad:'Gölcük Tabiat Parkı',    icon:'🏔', lon:30.6100, lat:37.8000, alt:1800, desc:'Volkanik krater gölü, Isparta\'nın en popüler piknik alanı.', tip:'Doğa' },
         gul        : { ad:'Gül Bahçeleri',           icon:'🌹', lon:30.4800, lat:37.8200, alt:1600, desc:'Dünyanın gül yağı üretiminin %70\'ini karşılayan bahçeler.', tip:'Doğa' },
-        /* İlçeler (otopilot) */
         yalvac     : { ad:'Yalvaç',      icon:'🏘', lon:31.1780, lat:38.2970, alt:1700, desc:'Antik Pisidia Antiokheia kenti ve Yalvaç Ovası.', tip:'İlçe' },
         sarkikaraagac:{ ad:'Şarkikaraağaç',icon:'🏘',lon:31.3640, lat:38.0830, alt:1600, desc:'Beyşehir Gölü kıyısında tarihî ilçe.', tip:'İlçe' },
         senirkent  : { ad:'Senirkent',   icon:'🏘', lon:30.5480, lat:37.9200, alt:1200, desc:'Doğal güzellikleri ve meyve bahçeleriyle ünlü.', tip:'İlçe' },
@@ -307,13 +336,11 @@
         sutculer   : { ad:'Sütçüler',    icon:'🏘', lon:30.9900, lat:37.4950, alt:2000, desc:'Toros Dağları eteklerinde, ormanlık dağ ilçesi.', tip:'İlçe' },
     };
 
-    /* Otopilot listesi: tarihi/doğal + ilçeler */
     var YER_LISTESI = [
         'sagalassos','egirdir_k','kaymakam','firdevs','yazili','kovada','golcuk','gul',
         'yalvac','sarkikaraagac','senirkent','uluborlu','gelendost','aksu','atabey','keciborlu','sutculer'
     ];
 
-    /* Yerler listesini oluştur */
     var yerGrid = document.getElementById('yer-grid');
     YER_LISTESI.forEach(function(id) {
         var n = NOKTALAR[id];
@@ -328,7 +355,6 @@
         yerGrid.appendChild(card);
     });
 
-    /* ── CESİUM VIEWER ── */
     var viewer = new Cesium.Viewer('sim-container', {
         baseLayerPicker:false, geocoder:false, homeButton:false,
         sceneModePicker:false, navigationHelpButton:false,
@@ -355,7 +381,6 @@
     var simEl = document.getElementById('sim-container');
     simEl.addEventListener('click', function() { this.focus(); });
 
-    /* ── UÇUŞ DEĞİŞKENLERİ ── */
     var lon = NOKTALAR.havaalani.lon;
     var lat = NOKTALAR.havaalani.lat;
     var alt = NOKTALAR.havaalani.alt;
@@ -363,9 +388,6 @@
     var heading = 0, pitch = -0.02, roll = 0;
     var mevcutHiz = 100, hedefHiz = 115;
     var minHiz = 40, maxHiz = 250;
-
-    /* ── KAMERA MODU ── */
-    /* 0 = 3. şahıs (arkadan), 1 = 1. şahıs (burun/kokpit) */
     var camMod = 0;
 
     window.camToggle = function() {
@@ -383,14 +405,12 @@
         }
     };
 
-    /* Klavye V → kamera toggle */
     window.addEventListener('keydown', function(e) {
         if (e.key.toLowerCase() === 'v' && document.activeElement === simEl) {
             camToggle();
         }
     });
 
-    /* ── UÇAK ENTİTY ── */
     var ucakKonteyner = viewer.entities.add({
         position: new Cesium.CallbackProperty(function() { return pozisyon; }, false),
         orientation: new Cesium.CallbackProperty(function() {
@@ -408,7 +428,6 @@
         box:{ dimensions:new Cesium.Cartesian3(4,24,0.4), material:Cesium.Color.fromCssColorString('#ef4444') }
     });
 
-    /* ── TUŞ DİNLEYİCİ ── */
     var tuslar = {};
     window.addEventListener('keydown', function(e) {
         var key = e.key.toLowerCase(); tuslar[key] = true;
@@ -422,23 +441,18 @@
         btn.addEventListener('touchend',   function(e) { tuslar[key]=false; e.preventDefault(); }, {passive:false});
     });
 
-    /* ── TELEPORT (Başlangıç noktası sekmeleri) ── */
     window.simTeleport = function(id, btn) {
         var n = NOKTALAR[id]; if (!n) return;
-        /* Otopilotu kapat */
         autoKapat();
-        /* Konumu ata */
         lon = n.lon; lat = n.lat; alt = n.alt;
         pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         heading = 0; pitch = -0.02; roll = 0;
         mevcutHiz = 100; hedefHiz = 115;
-        /* Sekme aktif */
         document.querySelectorAll('.sim-toolbar__tab').forEach(function(b){ b.classList.remove('sim-toolbar__tab--aktif'); });
         if (btn) btn.classList.add('sim-toolbar__tab--aktif');
         simEl.focus();
     };
 
-    /* ── OTOPİLOT ── */
     var autoAktif  = false;
     var autoHedef  = null;
     var AUTO_YAKLASMA = 0.005;
@@ -462,7 +476,6 @@
         document.querySelectorAll('.yer-card').forEach(function(c){ c.classList.remove('yer-card--aktif'); });
         var el = document.getElementById('yer-'+id);
         if (el) el.classList.add('yer-card--aktif');
-        /* Toolbar sekmelerini temizle (otopilot başlangıç noktalarından bağımsız) */
         document.querySelectorAll('.sim-toolbar__tab').forEach(function(b){ b.classList.remove('sim-toolbar__tab--aktif'); });
     }
 
@@ -475,11 +488,9 @@
 
     function autoGuncelle(dt) {
         if (!autoAktif || !autoHedef) return;
-
         var dLon = autoHedef.lon - lon;
         var dLat = autoHedef.lat - lat;
         var mesafe = Math.sqrt(dLon*dLon + dLat*dLat);
-
         if (mesafe < AUTO_YAKLASMA) {
             var simdikiId = YER_LISTESI.find(function(id){ return NOKTALAR[id] === autoHedef; });
             var simdikiIdx = YER_LISTESI.indexOf(simdikiId);
@@ -493,12 +504,10 @@
             autoHedef = null;
             return;
         }
-
         var baslangicMesafe = autoHedef._baslangicMesafe || mesafe;
         if (!autoHedef._baslangicMesafe) autoHedef._baslangicMesafe = mesafe;
         var ilerleme = Math.max(0, Math.min(100, (1 - mesafe / baslangicMesafe) * 100));
         document.getElementById('auto-fill').style.width = ilerleme + '%';
-
         var hedefHeading = Math.atan2(-dLon, dLat);
         var headingFark = hedefHeading - heading;
         while (headingFark >  Math.PI) headingFark -= 2*Math.PI;
@@ -506,19 +515,15 @@
         heading += headingFark * Math.min(2.0 * dt, 1.0);
         roll = headingFark * 0.3;
         roll = Math.max(-0.5, Math.min(0.5, roll));
-
         var altFark = autoHedef.alt - alt;
         pitch = Math.max(-0.3, Math.min(0.3, altFark * 0.001));
-
         hedefHiz = 150;
         mevcutHiz = lerp(mevcutHiz, hedefHiz, 3 * dt);
-
         var cosPitch = Math.cos(pitch);
         var mesafeYatay = mevcutHiz * dt;
         var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
         var deltaLat = ( Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
         var deltaAlt = Math.sin(pitch) * mesafeYatay;
-
         lon += Cesium.Math.toDegrees(deltaLon);
         lat += Cesium.Math.toDegrees(deltaLat);
         alt = Math.max(alt + deltaAlt, 1100);
@@ -527,7 +532,6 @@
 
     function lerp(start, end, amt) { return (1-amt)*start + amt*end; }
 
-    /* ── ANA DÖNGÜ ── */
     var oncekiZaman = performance.now();
     var hudSayac = 0;
 
@@ -542,30 +546,24 @@
             if (tuslar['w']) hedefHiz = Math.min(hedefHiz + 50*dt, maxHiz);
             if (tuslar['s']) hedefHiz = Math.max(hedefHiz - 50*dt, minHiz);
             mevcutHiz = lerp(mevcutHiz, hedefHiz, 3*dt);
-
             if (tuslar['a'])      { heading -= 2.8*dt; roll = lerp(roll,-0.4,5*dt); }
             else if (tuslar['d']) { heading += 2.8*dt; roll = lerp(roll, 0.4,5*dt); }
             else                  { roll = lerp(roll, 0, 4*dt); }
-
             if (tuslar['e'])      pitch = lerp(pitch,  0.3, 3*dt);
             else if (tuslar['q']) pitch = lerp(pitch, -0.3, 3*dt);
             else                  pitch = lerp(pitch,  0,   2*dt);
-
             var cosPitch = Math.cos(pitch);
             var mesafeYatay = mevcutHiz * dt;
             var deltaLon = (-Math.sin(heading) * cosPitch * mesafeYatay) / (6378137 * Math.cos(Cesium.Math.toRadians(lat)));
             var deltaLat = ( Math.cos(heading) * cosPitch * mesafeYatay) / 6378137;
             var deltaAlt = Math.sin(pitch) * mesafeYatay;
-
             lon += Cesium.Math.toDegrees(deltaLon);
             lat += Cesium.Math.toDegrees(deltaLat);
             alt = Math.max(alt + deltaAlt, 1050);
             pozisyon = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
         }
 
-        /* ── KAMERA GÜNCELLEME ── */
         if (camMod === 0) {
-            /* 3. Şahıs: arkadan takip */
             var kameraMesafeDerece = 55 / 111000;
             var kamLon = lon - Math.sin(heading) * kameraMesafeDerece;
             var kamLat = lat - Math.cos(heading) * kameraMesafeDerece;
@@ -575,20 +573,14 @@
                 orientation: { heading:heading, pitch: lerp(viewer.camera.pitch, Cesium.Math.toRadians(-8)+(pitch*0.15), 6*dt), roll: roll*-0.1 }
             });
         } else {
-            /* 1. Şahıs: uçağın burnundan kokpit görünümü */
-            /* Uçağın yönündeki birim vektörünü hesapla, biraz önüne koy */
-            var burunOffset = 14; /* metre — uçağın burnunun uçtan mesafesi */
+            var burunOffset = 14;
             var burunMesafeDerece = burunOffset / 111000;
             var kamLon1 = lon + Math.sin(heading) * burunMesafeDerece;
             var kamLat1 = lat + Math.cos(heading) * burunMesafeDerece;
             var kamAlt1 = alt + Math.sin(pitch) * burunOffset - 1;
             viewer.camera.setView({
                 destination: Cesium.Cartesian3.fromDegrees(kamLon1, kamLat1, kamAlt1),
-                orientation: {
-                    heading: heading,
-                    pitch: pitch - Cesium.Math.toRadians(3),
-                    roll: roll
-                }
+                orientation: { heading: heading, pitch: pitch - Cesium.Math.toRadians(3), roll: roll }
             });
         }
 
@@ -605,23 +597,43 @@
     }
     requestAnimationFrame(guncelle);
 
-    /* ── TAM EKRAN ── */
+    /* ── TAM EKRAN: wrapper'ı fixed yap, sonra viewer'ı resize et ── */
     var tamEkranAcik = false;
     window.simTamEkran = function() {
         tamEkranAcik = !tamEkranAcik;
         document.body.classList.toggle('sim-fullscreen', tamEkranAcik);
         document.body.style.overflow = tamEkranAcik ? 'hidden' : '';
-        viewer.resize();
+
+        /* Kısa gecikme: CSS transition tamamlansın, sonra Cesium canvas boyutunu güncelle */
+        setTimeout(function() {
+            viewer.resize();
+            /* Cesium bazen canvas'ı güncellemiyor, elle zorla */
+            var canvas = viewer.scene.canvas;
+            if (canvas) {
+                var wrapper = document.getElementById('sim-wrapper');
+                canvas.style.width  = wrapper.offsetWidth  + 'px';
+                canvas.style.height = wrapper.offsetHeight + 'px';
+            }
+            viewer.resize();
+        }, 50);
+
+        /* İkinci kez daha güvenli resize */
+        setTimeout(function() {
+            viewer.resize();
+        }, 300);
     };
+
     document.addEventListener('keydown', function(e) { if (e.key==='Escape' && tamEkranAcik) simTamEkran(); });
 
-    /* iframe boyut bildirimi */
     function boyutBildir() {
         var h = document.body.scrollHeight;
         window.parent.postMessage({ type: 'simHeight', height: h }, '*');
     }
     setTimeout(boyutBildir, 2000);
-    window.addEventListener('resize', boyutBildir);
+    window.addEventListener('resize', function() {
+        viewer.resize();
+        boyutBildir();
+    });
 
 })();
 </script>
